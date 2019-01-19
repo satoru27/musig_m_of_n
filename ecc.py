@@ -127,21 +127,79 @@ def ecdsa_verification(Q, m, r, s, ec=curve.secp256k1):
         return False
 
 
+def schnorr_sig(x, X, m, ec=curve.secp256k1):
+    """
+    INPUT: Domain parameters/elliptic curve, private key x, public key X, message m.
+    OUTPUT: Signature (R, s)
+    1. Select r ∈R [1,n −1]. 
+    2. Compute R = rP
+    3. c = H(X,R,m) -> int(c)
+    4. s = r + cx
+    5. Return (R,s)
+    """
+    r = 0
+    while r == 0:
+        r = gmp.mpz_random(gmp.random_state(int.from_bytes(urandom(4), byteorder='little')), ec.q)
+        r = r % ec.q
+
+    R = r*ec.G
+
+    c = hs.sha3_384()
+    c.update((str(X.x)+str(X.y)+str(R.x)+str(R.y)+m).encode())
+    c = c.digest()  # size 48 bytes
+    c = int.from_bytes(c, byteorder='little')
+
+    s = (gmp.mpz(r) + gmp.mpz(c)*gmp.mpz(x)) % ec.q
+
+    return R, s
+
+
+def schnorr_ver(X, m, R, s, ec=curve.secp256k1):
+    """
+    Verify if sP = R + cX
+    """
+    c = hs.sha3_384()
+    c.update((str(X.x) + str(X.y) + str(R.x) + str(R.y) + m).encode())
+    c = c.digest()  # size 48 bytes
+    c = int.from_bytes(c, byteorder='little')
+    c = c % ec.q
+
+    left = s*ec.G
+    right = R + c*X
+
+    if left.x == right.x and left.y == right.y:
+        return True
+    else:
+        return False
+
+
 def main():
     pub_key, priv_key = key_generation()
     print('Key Generation:')
     print(pub_key)
     print(priv_key)
 
-    print('\nECDSA:')
-    r, s = ecdsa_geneneration(priv_key, 'Hello World', ec=curve.secp256k1)
-    print(r)
+    pub_key2, priv_key2 = key_generation()
+
+    #print('\nECDSA:')
+    #r, s = ecdsa_geneneration(priv_key, 'Hello World', ec=curve.secp256k1)
+    #print(r)
+    #print(s)
+
+    #print('\nVerification:')
+    #ok = ecdsa_verification(pub_key, 'Hello World', r, s, ec=curve.secp256k1)
+    #print(ok)
+
+    print('Schnorr signature:')
+    R, s = schnorr_sig(priv_key, pub_key, 'Hello Worlds5434v3tv4tv4', ec=curve.secp256k1)
+    print(R)
     print(s)
 
-    print('\nVerification:')
-    ok = ecdsa_verification(pub_key, 'Hello World', r, s, ec=curve.secp256k1)
-    print(ok)
+    print('Schnorr signature verification')
+    result = schnorr_ver(pub_key2, 'Hello Worlds5434v3tv4tv4', R, s, ec=curve.secp256k1)
+    print(result)
 
 
 if __name__ == "__main__":
     main()
+
