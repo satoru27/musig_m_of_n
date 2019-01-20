@@ -173,13 +173,99 @@ def schnorr_ver(X, m, R, s, ec=curve.secp256k1):
         return False
 
 
+def naive_schnorr_musig(m, *args, ec=curve.secp256k1):
+    # args = [(pub_key, priv_key,)]
+    i = 1
+    r_list = []
+    rpoint_list = []
+    rpoint_sum = None
+    pub_key_sum = None
+
+    for keys in args:
+        #print(keys)
+        #print('\n-------------------------------------------\n')
+        #print(f'Signer {i} process:')
+        r = 0
+        while r == 0:
+            r = gmp.mpz_random(gmp.random_state(int.from_bytes(urandom(4), byteorder='little')), ec.q)
+            r = r % ec.q
+        r_list.append(r)
+        print(f'Generated r{i} = {r_list[i-1]}')
+        rpoint = r*ec.G
+        rpoint_list.append(rpoint)
+        print(f'Generated R{i} = ({rpoint_list[i-1]})')
+
+        if i == 1:
+            rpoint_sum = rpoint
+            pub_key_sum = keys[0]
+        else:
+            rpoint_sum += rpoint
+            pub_key_sum += keys[0]
+
+        i += 1
+
+    print(f'Sum of all Ri is R = {rpoint_sum}')
+    print(f'Sum of all public keys X is X\'= {pub_key_sum} ')
+
+    c = hs.sha3_384()
+    c.update((str(pub_key_sum.x) + str(pub_key_sum.y) + str(rpoint_sum.x) + str(rpoint_sum.y) + m).encode())
+    c = c.digest()  # size 48 bytes
+    c = int.from_bytes(c, byteorder='little')
+    c = c % ec.q  # necessario ?
+
+    print(f'Hash result c = {c}')
+
+    i = 1
+    partial_signatures = []
+    s = gmp.mpz(0)
+    for keys in args:
+        s_i = (r_list[i-1] + gmp.mpz(c) * gmp.mpz(keys[1])) % ec.q
+        partial_signatures.append(s_i)
+        print(f'Partial signature s{i} = {partial_signatures[i-1]}')
+        s = (s + s_i) % ec.q
+        i += 1
+
+    print(f'Sum of the signatures = {s}')
+
+    return rpoint_sum, s
+
+
+def naive_schnorr_musig_ver(R, s, m, *args, ec=curve.secp256k1):
+    """
+        Verify if sP = R + cX'
+    """
+    first = True
+    for pub_key in args:
+        if first:
+            pub_key_sum = pub_key
+            first = False
+        else:
+            pub_key_sum += pub_key
+
+    c = hs.sha3_384()
+    c.update((str(pub_key_sum.x) + str(pub_key_sum.y) + str(R.x) + str(R.y) + m).encode())
+    c = c.digest()  # size 48 bytes
+    c = int.from_bytes(c, byteorder='little')
+    c = c % ec.q
+
+    left = s * ec.G
+    right = R + c * pub_key_sum
+
+    if left.x == right.x and left.y == right.y:
+        return True
+    else:
+        return False
+
+
 def main():
     pub_key, priv_key = key_generation()
-    print('Key Generation:')
-    print(pub_key)
-    print(priv_key)
+    #print('Key Generation:')
+    #print(pub_key)
+    #print(priv_key)
 
     pub_key2, priv_key2 = key_generation()
+    pub_key3, priv_key3 = key_generation()
+    pub_key4, priv_key4 = key_generation()
 
     #print('\nECDSA:')
     #r, s = ecdsa_geneneration(priv_key, 'Hello World', ec=curve.secp256k1)
@@ -190,15 +276,20 @@ def main():
     #ok = ecdsa_verification(pub_key, 'Hello World', r, s, ec=curve.secp256k1)
     #print(ok)
 
-    print('Schnorr signature:')
-    R, s = schnorr_sig(priv_key, pub_key, 'Hello Worlds5434v3tv4tv4', ec=curve.secp256k1)
-    print(R)
-    print(s)
+    #print('Schnorr signature:')
+    #R, s = schnorr_sig(priv_key, pub_key, 'Hello Worlds5434v3tv4tv4', ec=curve.secp256k1)
+    #print(R)
+    #print(s)
 
-    print('Schnorr signature verification')
-    result = schnorr_ver(pub_key2, 'Hello Worlds5434v3tv4tv4', R, s, ec=curve.secp256k1)
-    print(result)
+    #print('Schnorr signature verification')
+    #result = schnorr_ver(pub_key2, 'Hello Worlds5434v3tv4tv4', R, s, ec=curve.secp256k1)
+    #print(result)
 
+    R, s = naive_schnorr_musig('Hello Worlds5434v3tv4tv4', (pub_key, priv_key,), (pub_key2, priv_key2), (pub_key3, priv_key3), (pub_key4, priv_key4))
+
+    result = naive_schnorr_musig_ver(R, s, 'Hello Worlds5434v3tv4tv4', pub_key, pub_key2, pub_key3, pub_key4)
+
+    print(f'Verification result: {result}')
 
 if __name__ == "__main__":
     main()
