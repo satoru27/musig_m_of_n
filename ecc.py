@@ -307,12 +307,113 @@ def rogue_key_attack(rogue_key, *args, ec=curve.secp256k1):
     return
 
 
-def bellare_neven_musign():
-    pass
+def bellare_neven_musign(m, *args, ec=curve.secp256k1):
+    # args = [(pub_key, priv_key,)]
+    i = 1
+    r_list = []
+    rpoint_list = []
+    rpoint_sum = None
+
+    public_key_list = ''
+
+    # the order of <L> must be the same for all signers
+    # <L> must be a unique encoding of L = {X1,...,Xn}
+    # quicksort or some other adequate sorting algorithm will be implemented here
+    # for now, the order is just the received order (which here is the same for all signers)
+    for keys in args:
+        public_key_list = public_key_list + ',' + str(keys[0])
+
+    # multiple iterations will be used for clarity in the interpretation of the algorithm
+    for keys in args:
+
+        r = 0
+
+        while r == 0:
+            r = gmp.mpz_random(gmp.random_state(int.from_bytes(urandom(4), byteorder='little')), ec.q)
+            r = r % ec.q
+
+        r_list.append(r)
+        print(f'Generated r{i} = {r_list[i - 1]}')
+
+        rpoint = r * ec.G
+        rpoint_list.append(rpoint)
+        print(f'Generated R{i} = ({rpoint_list[i - 1]})\n')
+
+        if i == 1:
+            rpoint_sum = rpoint
+        else:
+            rpoint_sum += rpoint
+
+        i += 1
+
+    print(f'R = {rpoint_sum}\n')
+
+    hash_list = []
+    signature_list = []
+    s_sum = gmp.mpz(0)
+    i = 0
+    for keys in args:
+        #c = None
+        c = hs.sha3_384()
+        c.update((str(keys[0].x) + str(keys[0].y) + str(rpoint_sum.x) + str(rpoint_sum.y) + public_key_list + m).encode())
+        c = c.digest()  # size 48 bytes
+        c = int.from_bytes(c, byteorder='little')
+        c = c % ec.q
+        hash_list.append(c)
+        print(f'c{i+1} = {c}')
+
+        s = (gmp.mpz(keys[1])*gmp.mpz(c) + gmp.mpz(r_list[i])) % ec.q
+        signature_list.append(s)
+        print(f's{i + 1} = {s}\n')
+        s_sum = (s_sum + s) % ec.q
+        i += 1
+
+    print(f's = {s_sum}\n')
+    print(f'Signature (R,s) is: ({rpoint_sum},{s_sum})\n')
+    return rpoint_sum, s_sum
 
 
-def bellare_neven_musign_ver():
-    pass
+def bellare_neven_musign_ver(R, s, m, *args, ec=curve.secp256k1):
+    # args = [pub_key1,...,pub_keyn]
+    public_key_list = ''
+
+    # the order of <L> must be the same for all signers
+    # <L> must be a unique encoding of L = {X1,...,Xn}
+    # quicksort or some other adequate sorting algorithm will be implemented here
+    # for now, the order is just the received order (which here is the same for all signers)
+    for key in args:
+        public_key_list = public_key_list + ',' + str(key)
+
+    i = 0
+    hash_list = []
+    c_pub_key = None
+    first = True
+
+    for key in args:
+        #c = None
+        c = hs.sha3_384()
+        c.update((str(key.x) + str(key.y) + str(R.x) + str(R.y) + public_key_list + m).encode())
+        c = c.digest()  # size 48 bytes
+        c = int.from_bytes(c, byteorder='little')
+        c = c % ec.q
+        hash_list.append(c)
+        print(f'c{i+1} = {c}\n')
+
+        if first:
+            c_pub_key = c*key
+            first = False
+        else:
+            c_pub_key = c_pub_key + c*key
+
+        i += 1
+
+    left = s * ec.G
+    right = R + c_pub_key
+
+    if left.x == right.x and left.y == right.y:
+        return True
+    else:
+        return False
 
 
 def main():
@@ -349,7 +450,13 @@ def main():
 
     #print(f'Verification result: {result}')
 
-    rogue_key_attack(pub_key, pub_key2, pub_key3, pub_key4)
+    #rogue_key_attack(pub_key, pub_key2, pub_key3, pub_key4)
+    print('Bellare-Neven MuSign signature scheme: ')
+    R, s = bellare_neven_musign('Hello Worlds5434v3tv4tv4', (pub_key, priv_key,), (pub_key2, priv_key2), (pub_key3, priv_key3), (pub_key4, priv_key4))
+    print('Bellare-Neven MuSign signature scheme verification: ')
+    result = bellare_neven_musign_ver(R, s, 'Hello Worlds5434v3tv4tv4', pub_key, pub_key2, pub_key3, pub_key4)
+    print(f'Verification result: {result}')
+
 
 if __name__ == "__main__":
     main()
