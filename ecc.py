@@ -416,6 +416,187 @@ def bellare_neven_musign_ver(R, s, m, *args, ec=curve.secp256k1):
         return False
 
 
+def musig(m, *args, ec=curve.secp256k1):
+    # args = [(pub_key, priv_key,)]
+
+    # the order of <L> must be the same for all signers
+    # <L> must be a unique encoding of L = {X1,...,Xn}
+    # quicksort or some other adequate sorting algorithm will be implemented here
+    # for now, the order is just the received order (which here is the same for all signers)
+    public_key_list = ''
+    for keys in args:
+        public_key_list = public_key_list + ',' + str(keys[0])
+
+    i = 0
+    # computing ai = Hagg(L,Xi)
+    a_list = []
+    for keys in args:
+        a = hs.sha3_384()
+        a.update((public_key_list+str(keys[0].x) + str(keys[0].y)).encode())
+        a = a.digest()  # size 48 bytes
+        a = int.from_bytes(a, byteorder='little')
+        a = a % ec.q
+        a_list.append(a)
+        print(f'a{i+1} = {a_list[i]}')
+        i += 1
+
+    #calculating X = sum(ai*Xi)
+    i = 1
+    first = True
+    aggregated_key = None
+    for keys in args:
+        if first:
+            aggregated_key = a_list[0]*keys[0]
+            first = False
+            print(f'X += a{i}*X{i}')
+        else:
+            aggregated_key += a_list[i]*keys[0]
+            print(f'X += a{i+1}*X{i+1}')
+            i += 1
+
+    print(f'Aggregated key is: {aggregated_key}')
+
+    # generate r1 and compute R1 = r1P
+    # calculate and send Ri commitment
+    r_list = []
+    rpoint_list = []
+    commit_list = []
+    i = 1
+    for keys in args:
+        r = 0
+        while r == 0:
+            r = gmp.mpz_random(gmp.random_state(int.from_bytes(urandom(4), byteorder='little')), ec.q)
+            r = r % ec.q
+        r_list.append(r)
+        print(f'Generated r{i} = {r_list[i - 1]}')
+
+        rpoint = r * ec.G
+        rpoint_list.append(rpoint)
+        print(f'Generated R{i} = ({rpoint_list[i - 1]})')
+
+        t = hs.sha3_384()
+        t.update((str(rpoint.x)+str(rpoint.y)).encode())
+        t = t.digest()  # size 48 bytes
+        # t = int.from_bytes(t, byteorder='little')
+        commit_list.append(t)
+        print(f'Generated t{i} = ({commit_list[i - 1]})\n')
+        i += 1
+
+    # checking the commited t with respective R
+    # in this implementation this is redundant but will be necessary once the communication isn't centralized
+    i = 0
+    ok = True
+    for keys in args:
+        t = hs.sha3_384()
+        t.update((str(rpoint_list[i].x) + str(rpoint_list[i].y)).encode())
+        t = t.digest()  # size 48 bytes
+
+        if t != commit_list[i]:
+            ok = False
+
+        i += 1
+    print(f'Commit ok: {ok}\n')
+
+    # computing R = sum(Ri)
+    rpoint_sum = None
+    first = True
+    for rpoint in rpoint_list:
+        if first:
+            rpoint_sum = rpoint
+            first = False
+        else:
+            rpoint_sum += rpoint
+
+    print(f'R = {rpoint_sum}\n')
+
+    # computing the challenge c = Hsig(X', R, m)
+    c = hs.sha3_384()
+    c.update((str(aggregated_key.x) + str(aggregated_key.y) + str(rpoint_sum.x) + str(rpoint_sum.y) + m).encode())
+    c = c.digest()  # size 48 bytes
+    c = int.from_bytes(c, byteorder='little')
+    c = c % ec.q
+
+    print(f'c = {c}\n')
+
+    # computing s1 = r1 + c*a1*x1 mod p
+    i = 0
+    s_list = []
+    for keys in args:
+        si = (gmp.mpz(r_list[i]) + gmp.mpz(c) * gmp.mpz(a_list[i]) * gmp.mpz(keys[1])) % ec.q
+        s_list.append(si)
+        print(f's{i+1} = {s_list[i]}')
+        i += 1
+
+    # computing s = sum(si) mod n
+    i = 0
+    s = gmp.mpz(0)
+    for keys in args:
+        s += s_list[i]
+        i += 1
+    s = s % ec.q
+    print(f'\ns = {s}\n')
+
+    # signature is (R,s)
+    return rpoint_sum, s
+
+
+def musig_ver(R, s, m, *args, ec=curve.secp256k1):
+    # args = [pub_key_1,...,pub_key_k]
+
+    # the order of <L> must be the same for all signers
+    # <L> must be a unique encoding of L = {X1,...,Xn}
+    # quicksort or some other adequate sorting algorithm will be implemented here
+    # for now, the order is just the received order (which here is the same for all signers)
+    public_key_list = ''
+    for key in args:
+        public_key_list = public_key_list + ',' + str(key)
+
+    # computing ai = Hagg(L,Xi)
+    i = 0
+    a_list = []
+    for key in args:
+        a = hs.sha3_384()
+        a.update((public_key_list + str(key.x) + str(key.y)).encode())
+        a = a.digest()  # size 48 bytes
+        a = int.from_bytes(a, byteorder='little')
+        a = a % ec.q
+        a_list.append(a)
+        print(f'a{i + 1} = {a_list[i]}')
+        i += 1
+
+    # calculating X = sum(ai*Xi)
+    i = 1
+    first = True
+    aggregated_key = None
+    for key in args:
+        if first:
+            aggregated_key = a_list[0] * key
+            first = False
+            print(f'X += a{i}*X{i}')
+        else:
+            aggregated_key += a_list[i] * key
+            print(f'X += a{i + 1}*X{i + 1}')
+            i += 1
+    print(f'Aggregated key is: {aggregated_key}')
+
+    # computing the challenge c = Hsig(X', R, m)
+    c = hs.sha3_384()
+    c.update((str(aggregated_key.x) + str(aggregated_key.y) + str(R.x) + str(R.y) + m).encode())
+    c = c.digest()  # size 48 bytes
+    c = int.from_bytes(c, byteorder='little')
+    c = c % ec.q
+    print(f'c = {c}\n')
+
+    # checking if sP = R + sum(ai*c*Xi) = R + c*X'
+    left = s*ec.G
+    right = R + c*aggregated_key
+
+    if left.x == right.x and left.y == right.y:
+        return True
+    else:
+        return False
+
+
 def main():
     pub_key, priv_key = key_generation()
     #print('Key Generation:')
@@ -451,10 +632,17 @@ def main():
     #print(f'Verification result: {result}')
 
     #rogue_key_attack(pub_key, pub_key2, pub_key3, pub_key4)
-    print('Bellare-Neven MuSign scheme: ')
-    R, s = bellare_neven_musign('Hello Worlds5434v3tv4tv4', (pub_key, priv_key,), (pub_key2, priv_key2), (pub_key3, priv_key3), (pub_key4, priv_key4))
-    print('Bellare-Neven MuSign scheme verification: ')
-    result = bellare_neven_musign_ver(R, s, 'Hello Worlds5434v3tv4tv4', pub_key, pub_key2, pub_key3, pub_key4)
+    #print('Bellare-Neven MuSign scheme: ')
+    #R, s = bellare_neven_musign('Hello Worlds5434v3tv4tv4', (pub_key, priv_key), (pub_key2, priv_key2), (pub_key3, priv_key3), (pub_key4, priv_key4))
+    #print('Bellare-Neven MuSign scheme verification: ')
+    #result = bellare_neven_musign_ver(R, s, 'Hello Worlds5434v3tv4tv4', pub_key, pub_key2, pub_key3, pub_key4)
+    #print(f'Verification result: {result}')
+
+    m = 'Hello Worlds5434v3tv4tv4'
+    print('MuSig scheme: ')
+    R, s = musig(m, (pub_key, priv_key), (pub_key2, priv_key2), (pub_key3, priv_key3), (pub_key4, priv_key4))
+    print('MuSig scheme verification: ')
+    result = musig_ver(R, s, m, pub_key, pub_key2, pub_key3, pub_key4)
     print(f'Verification result: {result}')
 
 
