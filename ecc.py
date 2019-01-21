@@ -451,9 +451,9 @@ def main():
     #print(f'Verification result: {result}')
 
     #rogue_key_attack(pub_key, pub_key2, pub_key3, pub_key4)
-    print('Bellare-Neven MuSign signature scheme: ')
+    print('Bellare-Neven MuSign scheme: ')
     R, s = bellare_neven_musign('Hello Worlds5434v3tv4tv4', (pub_key, priv_key,), (pub_key2, priv_key2), (pub_key3, priv_key3), (pub_key4, priv_key4))
-    print('Bellare-Neven MuSign signature scheme verification: ')
+    print('Bellare-Neven MuSign scheme verification: ')
     result = bellare_neven_musign_ver(R, s, 'Hello Worlds5434v3tv4tv4', pub_key, pub_key2, pub_key3, pub_key4)
     print(f'Verification result: {result}')
 
