@@ -3,7 +3,22 @@ from fastecdsa import curve
 import gmpy2 as gmp
 from os import urandom
 from sys import getsizeof
+"""
+Key generation, key verification, ecdsa_geneneration, ecdsa_verification algorithms are based on the algorithms proposed
+on Darrel Hankerson, Alfred Menezes and Scott Vanstone Guide to Elliptic Curve Cryptography (2004) book.
 
+Simple schnorr signature and verification, and the naive schnorr musig and verification was based on the description
+presented on Gregory Maxwell, Andrew Poelstra1, Yannick Seurin, and Pieter Wuille paper Simple Schnorr Multi-Signatures
+with Applications to Bitcoin (2018)
+
+Bellare-neven signature scheme was based on the description presented on Mihir Bellare and Gregory Neven paper 
+Multi-Signatures in the Plain Public-Key Model and a General Forking Lemma (2006).
+
+Another important paper is the one where C. P. Schnorr first proposed his signature scheme,
+Efficient Signature Generation by Smart Cards (1991).
+
+The schemes were adapted to be used with elliptic curves, especially with the curve secp256k1 (bitcoin curve)
+"""
 """
 Initialize the parameters of an elliptic curve.
        WARNING: Do not generate your own parameters unless you know what you are doing or you could
@@ -235,6 +250,7 @@ def naive_schnorr_musig_ver(R, s, m, *args, ec=curve.secp256k1):
         Verify if sP = R + cX'
     """
     first = True
+    pub_key_sum = None
     for pub_key in args:
         if first:
             pub_key_sum = pub_key
@@ -255,6 +271,48 @@ def naive_schnorr_musig_ver(R, s, m, *args, ec=curve.secp256k1):
         return True
     else:
         return False
+
+
+def rogue_key_attack(rogue_key, *args, ec=curve.secp256k1):
+
+    print(f'Target X value is: {rogue_key}')
+
+    first = True
+    pub_keys_sum = None
+
+    for key in args:
+        if first:
+            pub_keys_sum = key
+            first = False
+        else:
+            pub_keys_sum += key
+
+    print(f'Sum of other public keys is: {pub_keys_sum}')
+    pub_keys_sum_inv = -pub_keys_sum
+
+    print(f'Inverse of the sum of target public keys is: {pub_keys_sum_inv}')
+    final_rogue_key = rogue_key + pub_keys_sum_inv
+
+    print(f'X1 value: {final_rogue_key}')
+    x_result = final_rogue_key + pub_keys_sum
+    print(f'Final public key result: {x_result}')
+
+    if rogue_key.x == x_result.x and rogue_key.y == x_result.y:
+        equal = True
+    else:
+        equal = False
+
+    print(f'Equal: {equal}')
+
+    return
+
+
+def bellare_neven_musign():
+    pass
+
+
+def bellare_neven_musign_ver():
+    pass
 
 
 def main():
@@ -285,11 +343,13 @@ def main():
     #result = schnorr_ver(pub_key2, 'Hello Worlds5434v3tv4tv4', R, s, ec=curve.secp256k1)
     #print(result)
 
-    R, s = naive_schnorr_musig('Hello Worlds5434v3tv4tv4', (pub_key, priv_key,), (pub_key2, priv_key2), (pub_key3, priv_key3), (pub_key4, priv_key4))
+    #R, s = naive_schnorr_musig('Hello Worlds5434v3tv4tv4', (pub_key, priv_key,), (pub_key2, priv_key2), (pub_key3, priv_key3), (pub_key4, priv_key4))
 
-    result = naive_schnorr_musig_ver(R, s, 'Hello Worlds5434v3tv4tv4', pub_key, pub_key2, pub_key3, pub_key4)
+    #result = naive_schnorr_musig_ver(R, s, 'Hello Worlds5434v3tv4tv4', pub_key, pub_key2, pub_key3, pub_key4)
 
-    print(f'Verification result: {result}')
+    #print(f'Verification result: {result}')
+
+    rogue_key_attack(pub_key, pub_key2, pub_key3, pub_key4)
 
 if __name__ == "__main__":
     main()
