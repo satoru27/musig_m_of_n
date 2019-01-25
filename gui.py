@@ -47,53 +47,52 @@ class Application(tk.Tk):
         status.pack(side=tk.BOTTOM, fill=tk.X)
 
 
-class InitialPage(tk.Frame):
+class PageBase(tk.Frame):
     def __init__(self, master):
         tk.Frame.__init__(self, master)
-        title_font = font.Font(size=18, weight="bold", slant="italic")
-        tk.Label(self, text="Welcome", font=title_font).pack(side="top", fill="x", pady=10)
+        self.title_font = font.Font(size=18, weight="bold", slant="italic")
 
 
-class PageSimpleSchnorr(tk.Frame):
+class InitialPage(PageBase):
     def __init__(self, master):
-        tk.Frame.__init__(self, master)
-        title_font = font.Font(size=18, weight="bold", slant="italic")
-        tk.Label(self, text="Simple Schnorr Signature", font=title_font).pack(side="top", fill="x", pady=10)
+        PageBase.__init__(self, master)
+        tk.Label(self, text="Welcome", font=self.title_font).pack(side="top", fill="x", pady=10)
 
 
-class PageNaiveMuSig(tk.Frame):
+class PageSimpleSchnorr(PageBase):
     def __init__(self, master):
-        tk.Frame.__init__(self, master)
-        title_font = font.Font(size=18, weight="bold", slant="italic")
-        tk.Label(self, text="Naive Multi Signature Scheme", font=title_font).pack(side="top", fill="x", pady=10)
+        PageBase.__init__(self, master)
+        tk.Label(self, text="Simple Schnorr Signature", font=self.title_font).pack(side="top", fill="x", pady=10)
 
 
-class PageRogueKeyAttack(tk.Frame):
+class PageNaiveMuSig(PageBase):
     def __init__(self, master):
-        tk.Frame.__init__(self, master)
-        title_font = font.Font(size=18, weight="bold", slant="italic")
-        tk.Label(self, text="Rogue-key Attack", font=title_font).pack(side="top", fill="x", pady=10)
+        PageBase.__init__(self, master)
+        tk.Label(self, text="Naive Multi Signature Scheme", font=self.title_font).pack(side="top", fill="x", pady=10)
 
 
-class PageBellareNeven(tk.Frame):
+class PageRogueKeyAttack(PageBase):
     def __init__(self, master):
-        tk.Frame.__init__(self, master)
-        title_font = font.Font(size=18, weight="bold", slant="italic")
-        tk.Label(self, text="Bellare Neve Multi Signature Scheme", font=title_font).pack(side="top", fill="x", pady=10)
+        PageBase.__init__(self, master)
+        tk.Label(self, text="Rogue-key Attack", font=self.title_font).pack(side="top", fill="x", pady=10)
 
 
-class PageMuSig(tk.Frame):
+class PageBellareNeven(PageBase):
     def __init__(self, master):
-        tk.Frame.__init__(self, master)
-        title_font = font.Font(size=18, weight="bold", slant="italic")
-        tk.Label(self, text="MuSig", font=title_font).pack(side="top", fill="x", pady=10)
+        PageBase.__init__(self, master)
+        tk.Label(self, text="Bellare Neve Multi Signature Scheme", font=self.title_font).pack(side="top", fill="x", pady=10)
 
 
-class PageMuSigDistr(tk.Frame):
+class PageMuSig(PageBase):
     def __init__(self, master):
-        tk.Frame.__init__(self, master)
-        title_font = font.Font(size=18, weight="bold", slant="italic")
-        tk.Label(self, text="MuSig (Distributed)", font=title_font).pack(side="top", fill="x", pady=10)
+        PageBase.__init__(self, master)
+        tk.Label(self, text="MuSig", font=self.title_font).pack(side="top", fill="x", pady=10)
+
+
+class PageMuSigDistr(PageBase):
+    def __init__(self, master):
+        PageBase.__init__(self, master)
+        tk.Label(self, text="MuSig (Distributed)", font=self.title_font).pack(side="top", fill="x", pady=10)
 
 app = Application()
 app.mainloop()
