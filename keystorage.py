@@ -12,3 +12,16 @@
 #    }
 # -----END EC PRIVATE KEY-----
 # .pem file -> base64 encoding
+
+#temporary code
+from fastecdsa import keys
+
+
+def export_keys(key, ec=None, filepath=None):
+    # temporary code
+    keys.export_key(key, ec, filepath)
+
+
+def import_keys(filepath):
+    # temporary code
+    return keys.import_key(filepath)
