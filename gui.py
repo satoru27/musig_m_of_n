@@ -2,13 +2,21 @@ import tkinter as tk
 from tkinter import font
 from functools import partial
 import os
+import re
 
 from ecc import *
 
 from keystorage import *
 
+from fastecdsa import point
+
 def testfunc(m):
     print(f'>> {m}')
+
+
+# mudar o dict de curvas da classe da pagina
+curves = {"secp256k1": curve.secp256k1, "secp224k1": curve.secp224k1 ,"brainpoolP256r1": curve.brainpoolP256r1,
+          "brainpoolP384r1": curve.brainpoolP384r1 ,"brainpoolP512r1": curve.brainpoolP512r1}
 
 def path_checker(path):
     if os.path.isfile(path):
@@ -25,6 +33,17 @@ def path_checker(path):
         else:
             return 11 # invalid path
 
+
+def point_handler(parameters):
+    x_value = re.search('X:(.*)Y:', parameters).group(1).strip(' ')
+    y_value = re.search('Y:(.*)\\(', parameters).group(1).strip(' ')
+    curve_name = re.search('<(.*)>', parameters).group(1).strip(' ')
+
+    x_value = int(x_value, 0)
+    y_value = int(y_value, 0)
+    p = point.Point(x_value, y_value, curves[curve_name])
+
+    return p
 
 class Application(tk.Tk):
     def __init__(self):
@@ -214,19 +233,9 @@ class PageMuSigSign(PageBase):
         tk.Label(self, text="MuSig (Sign)", font=self.title_font).pack(side="top", fill="x", pady=10)
         # INPUT: n signatures from file, files that contains the priv and pub keys
         # OUTPUT: signature
-        # self.n_signers = tk.StringVar()
-        # self.paths_var = []
-        # self.paths_e = []
-        # self.message = tk.StringVar()
-        #
-        # tk.Label(self, text="Message:").pack(padx=1, pady=1)
-        # e_message = tk.Entry(self, textvariable=self.message)
-        #
-        # tk.Label(self, text="Number of signers:").pack(padx=1, pady=1)
-        # e_signers = tk.Entry(self, textvariable=self.n_signers)
-        # e_signers.pack()
-        # b_signers = tk.Button(self, text="Ok", command=partial(self.keys_entry, self.n_signers.get()))
-        # b_signers.pack()
+
+        self.signature = None
+        self.r = None
 
         self.signers_path = tk.StringVar()
         tk.Label(self, text="Signers keys paths (separated by \'|\'):").pack(padx=1, pady=1)
@@ -264,8 +273,9 @@ class PageMuSigSign(PageBase):
 
         signers_path = signers_path.split('|')
         print(signers_path)
+        n = len(signers_path)
 
-        for i in range(len(signers_path)):
+        for i in range(n):
             signers_path[i] = signers_path[i].strip(' ')
             s = f'{signers_path[i]}\n'
             self.output_box.insert(tk.END, s)
@@ -275,30 +285,149 @@ class PageMuSigSign(PageBase):
         self.output_box.insert(tk.END, s)
         self.output_box.see(tk.END)
 
+        for i in range(n):
+            if not os.path.isfile(signers_path[i]):
+                s = f'Error: the file {signers_path[i]} does not exist'
+                s += '\n--------------------------------------------------------------------------------'
+                self.output_box.insert(tk.END, s)
+                self.output_box.see(tk.END)
+                return
+
+        keys = []
+        for i in range(n):
+            keys.append(import_keys(signers_path[i]))
 
 
+        # gambiarra --> a ordem no codigo do musig e pub,priv, a output do import key e priv,pub
+        # switch
+        keys_temp = keys
+        for i in range(n):
+            keys[i] = keys_temp[i][1], keys_temp[i][0]
 
+        self.r, self.signature = musig(message, keys) #adicionar o switch de curvas elipticas e repassar como argumento
 
-
-
-
-    # def keys_entry(self, n):
-    #     if self.paths_var is not
-    #     self.paths_var = []
-    #     for i in range(n):
-    #
-    #         tk.Label(self, text=f"Signer {i+1}").pack(padx=1, pady=1)
-    #         e_signers = tk.Entry(self, textvariable=self.n_signers)
-    #         e_signers.pack()
-
-
-
-
+        s = f'Signature for message \"{message}\":\n R:\n{self.r}\n s:{self.signature}\n'
+        s += '\n--------------------------------------------------------------------------------'
+        self.output_box.insert(tk.END, s)
+        self.output_box.see(tk.END)
 
 class PageMuSigVerify(PageBase):
     def __init__(self, master):
         PageBase.__init__(self, master)
         tk.Label(self, text="MuSig (Verification)", font=self.title_font).pack(side="top", fill="x", pady=10)
+        # INPUT: n signatures from file, files that contains the priv and pub keys
+        # OUTPUT: signature
+
+        self.signers_path = tk.StringVar()
+        self.signature = tk.StringVar()
+        self.r = tk.StringVar()
+        self.message = tk.StringVar()
+
+        self.signers_path = tk.StringVar()
+        tk.Label(self, text="Signers keys paths (separated by \'|\'):").pack(padx=1, pady=1)
+        e_signers = tk.Entry(self, textvariable=self.signers_path)
+        e_signers.pack()
+
+        #temporario, salvar a assinatura em um arquivo e depois carrega - lo
+        tk.Label(self, text="R:").pack(padx=1, pady=1)
+        e_message = tk.Entry(self, textvariable=self.r)
+        e_message.pack()
+
+        tk.Label(self, text="s:").pack(padx=1, pady=1)
+        e_message = tk.Entry(self, textvariable=self.signature)
+        e_message.pack()
+
+        tk.Label(self, text="Message:").pack(padx=1, pady=1)
+        e_message = tk.Entry(self, textvariable=self.message)
+        e_message.pack()
+
+        b_sign = tk.Button(self, text="Verify", command=self.verify_handler)
+        b_sign.pack()
+
+        self.output_box = tk.Text(self)
+        self.output_box.pack(side=tk.BOTTOM)
+
+    def verify_handler(self):
+        signers_path = self.signers_path.get()
+        message = self.message.get()
+        signature = int(self.signature.get())
+        r = self.r.get()
+
+        if message == '':
+            s = f'Invalid message'
+            s = s + '\n--------------------------------------------------------------------------------'
+            self.output_box.insert(tk.END, s)
+            self.output_box.see(tk.END)
+            return
+
+        if signers_path == '':
+            s = f'Invalid path'
+            s = s + '\n--------------------------------------------------------------------------------'
+            self.output_box.insert(tk.END, s)
+            self.output_box.see(tk.END)
+            return
+
+        if r == '':
+            s = f'Invalid r'
+            s = s + '\n--------------------------------------------------------------------------------'
+            self.output_box.insert(tk.END, s)
+            self.output_box.see(tk.END)
+            return
+
+        if signature == '':
+            s = f'Invalid s'
+            s = s + '\n--------------------------------------------------------------------------------'
+            self.output_box.insert(tk.END, s)
+            self.output_box.see(tk.END)
+            return
+
+        signers_path = signers_path.split('|')
+        print(signers_path)
+        n = len(signers_path)
+
+        for i in range(n):
+            signers_path[i] = signers_path[i].strip(' ')
+            s = f'{signers_path[i]}\n'
+            self.output_box.insert(tk.END, s)
+            self.output_box.see(tk.END)
+
+        s = '\n--------------------------------------------------------------------------------'
+        self.output_box.insert(tk.END, s)
+        self.output_box.see(tk.END)
+
+        for i in range(n):
+            if not os.path.isfile(signers_path[i]):
+                s = f'Error: the file {signers_path[i]} does not exist'
+                s += '\n--------------------------------------------------------------------------------'
+                self.output_box.insert(tk.END, s)
+                self.output_box.see(tk.END)
+                return
+
+        keys = []
+        for i in range(n):
+            temp = import_keys(signers_path[i])
+            keys.append(temp[1]) # pegando apenas a chave publica
+
+        r = point_handler(r)
+
+        ok = False
+        ok = musig_ver(r, signature, message, keys) # atualizar para receber tambem a curva
+
+        if ok:
+            s = f'PASS'
+            s = s + '\n--------------------------------------------------------------------------------'
+            self.output_box.insert(tk.END, s)
+            self.output_box.see(tk.END)
+            return
+        else:
+            s = f'FAIL'
+            s = s + '\n--------------------------------------------------------------------------------'
+            self.output_box.insert(tk.END, s)
+            self.output_box.see(tk.END)
+            return
+
+
+
 
 class PageMuSigDistr(PageBase):
     def __init__(self, master):

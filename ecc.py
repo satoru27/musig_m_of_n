@@ -423,6 +423,11 @@ def musig(m, *args, ec=curve.secp256k1):
     # <L> must be a unique encoding of L = {X1,...,Xn}
     # quicksort or some other adequate sorting algorithm will be implemented here
     # for now, the order is just the received order (which here is the same for all signers)
+
+    # gambiarra
+    if isinstance(args[0], list):
+        args = args[0]
+
     public_key_list = ''
     for keys in args:
         public_key_list = public_key_list + ',' + str(keys[0])
@@ -542,6 +547,10 @@ def musig(m, *args, ec=curve.secp256k1):
 
 def musig_ver(R, s, m, *args, ec=curve.secp256k1):
     # args = [pub_key_1,...,pub_key_k]
+
+    # gambiarra
+    if isinstance(args[0], list):
+        args = args[0]
 
     # the order of <L> must be the same for all signers
     # <L> must be a unique encoding of L = {X1,...,Xn}
