@@ -2,6 +2,7 @@ import hashlib as hs
 from fastecdsa import curve
 import gmpy2 as gmp
 from os import urandom
+import network
 from sys import getsizeof
 """
 Key generation, key verification, ecdsa_geneneration, ecdsa_verification algorithms are based on the algorithms proposed
@@ -81,7 +82,7 @@ def ecdsa_geneneration(d, m, ec=curve.secp256k1):
     2. Compute kP = (x1, y1) and convert x1 to an integer x1'.
     3. Compute r = x1 mod n. If r = 0 then go to step 1.
     4. Compute e = H(m).
-    5. Compute s = k−1(e +dr) mod n. If s = 0 then go to step 1.
+    5. Compute s = k^−1(e +dr) mod n. If s = 0 then go to step 1.
     6. Return(r,s).
     """
     r = 0
@@ -98,7 +99,7 @@ def ecdsa_geneneration(d, m, ec=curve.secp256k1):
     """
     e = hs.sha3_384()
     e.update(m.encode())
-    e = e.digest() #size 48 bytes
+    e = e.digest() # size 48 bytes
     e = int.from_bytes(e, byteorder='little')
     s = (gmp.invert(k, ec.q) * (gmp.mpz(e) + gmp.mpz(d)*gmp.mpz(r))) % ec.q
 
@@ -606,6 +607,91 @@ def musig_ver(R, s, m, *args, ec=curve.secp256k1):
         return False
 
 
+def musig_distributed(m, user_key, pub_keys, address_dict, ec=curve.secp256k1, hash = hs.sha256):
+    # user_key = (priv key, pub key)
+    # pub_keys = (None, pub key)
+    # address_dict = {pubkey:(ip,port)}
+
+    # the order of <L> must be the same for all signers
+    # <L> must be a unique encoding of L = {X1,...,Xn}
+    # quicksort or some other adequate sorting algorithm will be implemented here
+    # for now, the order is just the received order (which here is the same for all signers)
+
+
+    pub_keys.insert(0, user_key[1])
+
+    public_key_l = ''
+
+    for key in pub_keys:
+        public_key_l = public_key_l + ',' + str(key)
+
+    type(public_key_l)
+    print(public_key_l)
+
+    i = 0
+    a_list = []
+
+    for key in pub_keys:
+        a = hash()
+        a.update((public_key_l + str(key.x) + str(key.y)).encode())
+        a = a.digest()  # size 48 bytes
+        a = int.from_bytes(a, byteorder='little')
+        a = a % ec.q
+        a_list.append(a)
+        print(f'a{i + 1} = {a_list[i]}')
+        i += 1
+
+    print(a_list)
+
+    i = 1
+    first = True
+    aggregated_key = None
+    for key in pub_keys:
+        if first:
+            aggregated_key = a_list[0] * key
+            first = False
+            print(f'X += a{i}*X{i}')
+        else:
+            aggregated_key += a_list[i] * key
+            print(f'X += a{i + 1}*X{i + 1}')
+            i += 1
+
+    print(aggregated_key)
+
+    r = 0
+    while r == 0:
+        r = gmp.mpz_random(gmp.random_state(int.from_bytes(urandom(4), byteorder='little')), ec.q)
+        r = r % ec.q
+    print(f'Generated r = {r}')
+    r_point = r * ec.G
+    print(f'Generated R = ({r_point})')
+
+    t = hash()
+    t.update((str(r_point.x) + str(r_point.y)).encode())
+    t = t.hexdigest()  # size 48 bytes
+    # t = int.from_bytes(t, byteorder='little')
+    print(f'Generated t = ({t})\n')
+
+    commit = str(user_key[1]) + ':' + str(t)
+
+    print(commit)
+    # X: 0xc1c1d0590e2aa499ad285b17415f9dd3005a97f4d2dfef05e5687d76150ec65f
+    # Y: 0x280f8e5605faa8fe66fbf1221b75240dbb3ff6370bd9030ec4364809e8a0c77f
+    # (On curve <secp256k1>):beb23659edbf8912aad141291f74791badd7d865d220aed2324a6a3b55eddfd4
+
+    # send to signers
+    iterable = []
+    for key, address in address_dict.items():
+        temp = (address, commit)
+        iterable.append(temp)
+
+    network.multi_thread_send_t(iterable)
+
+    # receive from other signers
+    # colocar antes de mandar para ja esperar se necessario ?
+
+
+
 def main():
     pub_key, priv_key = key_generation()
     #print('Key Generation:')
@@ -647,12 +733,39 @@ def main():
     #result = bellare_neven_musign_ver(R, s, 'Hello Worlds5434v3tv4tv4', pub_key, pub_key2, pub_key3, pub_key4)
     #print(f'Verification result: {result}')
 
-    m = 'Hello Worlds5434v3tv4tv4'
-    print('MuSig scheme: ')
-    R, s = musig(m, (pub_key, priv_key), (pub_key2, priv_key2), (pub_key3, priv_key3), (pub_key4, priv_key4))
-    print('MuSig scheme verification: ')
-    result = musig_ver(R, s, m, pub_key, pub_key2, pub_key3, pub_key4)
-    print(f'Verification result: {result}')
+    # m = 'Hello Worlds5434v3tv4tv4'
+    # print('MuSig scheme: ')
+    # R, s = musig(m, (pub_key, priv_key), (pub_key2, priv_key2), (pub_key3, priv_key3), (pub_key4, priv_key4))
+    # print('MuSig scheme verification: ')
+    # result = musig_ver(R, s, m, pub_key, pub_key2, pub_key3, pub_key4)
+    # print(f'Verification result: {result}')
+
+    import keystorage
+
+    my_key = keystorage.import_keys('k2.pem')
+    key2 = keystorage.import_keys('key2.pem')
+    key3 = keystorage.import_keys('key4.pem')
+    key4 = keystorage.import_keys('key90.pem')
+
+    key2 = (None, key2[1])
+    key3 = (None, key3[1])
+    key4 = (None, key4[1])
+
+    addr2 = ('127.0.0.1', 2437)
+    addr3 = ('127.0.0.1', 2438)
+    addr4 = ('127.0.0.1', 2439)
+
+    m = 'teste39826c4b39'
+
+    address_dict = {str(key2[1]): addr2, str(key3[1]): addr3, str(key4[1]): addr4}
+
+    pub_key_lst = [key2[1], key3[1], key4[1]]
+
+    musig_distributed(m, my_key, pub_key_lst, address_dict, ec=curve.secp256k1)
+
+
+
+
 
 
 if __name__ == "__main__":

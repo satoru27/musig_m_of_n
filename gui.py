@@ -427,12 +427,115 @@ class PageMuSigVerify(PageBase):
             return
 
 
-
-
 class PageMuSigDistr(PageBase):
     def __init__(self, master):
         PageBase.__init__(self, master)
+        self.n_signers = 0
         tk.Label(self, text="MuSig (Distributed)", font=self.title_font).pack(side="top", fill="x", pady=10)
+
+        b_generate = tk.Button(self, text="Verify", command=partial(master.switch_frame, PageMuSigDistrVerify))
+        b_generate.pack(side=tk.BOTTOM)
+        b_generate = tk.Button(self, text="Sign", command=partial(master.switch_frame, PageMuSigDistrSign))
+        b_generate.pack(side=tk.BOTTOM)
+
+
+class PageMuSigDistrSign(PageBase):
+    def __init__(self, master):
+        PageBase.__init__(self, master)
+        tk.Label(self, text="MuSig (Distributed) Sign", font=self.title_font).pack(side="top", fill="x", pady=10)
+        self.user_key_path_var = tk.StringVar()
+        self.message_var = tk.StringVar()
+        self.paths_var = []
+        #self.path_entry = []
+        self.address_var = []
+        #self.address_entry = []
+        self.n = 0
+        self.n_signers_var = tk.StringVar()
+        tk.Label(self, text="Number of signers:").pack(side=tk.LEFT, padx=1, pady=1)
+        e_n_signers = tk.Entry(self, textvariable=self.n_signers_var)
+        e_n_signers.pack(side=tk.LEFT)
+        b_generate = tk.Button(self, text="Ok", command=self.entry_fields)
+        b_generate.pack(side=tk.LEFT)
+
+    def entry_fields(self):
+        self.n = int(self.n_signers_var.get())
+
+        tk.Label(self, text=f"User key path:").pack(padx=1, pady=1)
+        path_entry = tk.Entry(self, textvariable=self.user_key_path_var)
+        path_entry.pack()
+
+        for i in range(self.n-1):
+            path_var = tk.StringVar()
+            self.paths_var.append(path_var)
+            tk.Label(self, text=f"Path {i+1}:").pack(padx=1, pady=1)
+            path_entry = tk.Entry(self, textvariable=self.paths_var[i])
+            path_entry.pack()
+
+            address_var = tk.StringVar()
+            self.address_var.append(address_var)
+            tk.Label(self, text=f"Address {i+1}:").pack(padx=1, pady=1)
+            address_entry = tk.Entry(self, textvariable=self.address_var[i])
+            address_entry.pack()
+
+        tk.Label(self, text="Message:").pack(side=tk.LEFT, padx=1, pady=1)
+        e_message = tk.Entry(self, textvariable=self.message_var)
+        e_message.pack(side=tk.LEFT)
+
+        b_generate = tk.Button(self, text="Sign", command=self.sign)
+        b_generate.pack()
+
+        self.output_box = tk.Text(self)
+        self.output_box.pack(side=tk.BOTTOM)
+
+    def address_parser(self):
+        # enderecos na forma ip:port
+        address = []
+        for entry in self.address_var:
+            s = entry.get()
+            print(s)
+            ip = re.search('(.*):', s).group(1).strip(' ')
+            port = int(re.search(':(.*)', s).group(1).strip(' '))
+            temp = (ip, port)
+            address.append(temp)
+        return address
+
+    def keys_parser(self):
+        keys = []
+        for filepath in self.paths_var:
+            keys.append(import_keys(filepath.get()))
+        return keys
+
+    def sign(self):
+        addr = self.address_parser()
+        print(addr)
+        keys = self.keys_parser()
+        print(keys)
+        user_key = import_keys(self.user_key_path_var.get())
+        address_dict = {}
+        for key, addr in zip(keys,addr):
+            address_dict.update({str(key): addr})
+
+        print(f'\n{self.message_var.get()}\n')
+        print(f'\n{user_key}\n')
+        print(f'\n{keys}\n')
+        print(f'\n{address_dict}\n')
+
+        #musig_distributed(self.message_var.get(), user_key, keys, address_dict, ec=curve.secp256k1)
+
+
+
+
+class PageMuSigDistrVerify(PageBase):
+    def __init__(self, master):
+        PageBase.__init__(self, master)
+        self.n_signers = 0
+        tk.Label(self, text="MuSig (Distributed) Verify", font=self.title_font).pack(side="top", fill="x", pady=10)
+        self.n_signers_var = tk.StringVar()
+        tk.Label(self, text="Number of signers:").pack(padx=1, pady=1)
+        e_n_signers = tk.Entry(self, textvariable=self.n_signers_var)
+        e_n_signers.pack()
+        b_generate = tk.Button(self, text="Ok", command=partial(master.switch_frame, PageMuSigDistrSign))
+        b_generate.pack(side=tk.BOTTOM)
 
 
 app = Application()
