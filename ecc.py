@@ -2,7 +2,10 @@ import hashlib as hs
 from fastecdsa import curve
 import gmpy2 as gmp
 from os import urandom
-import network
+import pointsort
+import p2pnetwork
+import re
+from fastecdsa import point
 from sys import getsizeof
 """
 Key generation, key verification, ecdsa_geneneration, ecdsa_verification algorithms are based on the algorithms proposed
@@ -37,6 +40,19 @@ Initialize the parameters of an elliptic curve.
            |  gy (long): The y coordinate of the base point of the curve.
            |  oid (str): The object identifier of the curve.
 """
+
+def point_from_str(input):
+    curves = {"secp256k1": curve.secp256k1, "secp224k1": curve.secp224k1, "brainpoolP256r1": curve.brainpoolP256r1,
+              "brainpoolP384r1": curve.brainpoolP384r1, "brainpoolP512r1": curve.brainpoolP512r1}
+    x_value = re.search('X:(.*)\\nY:', input).group(1).strip(' ')
+    y_value = re.search('Y:(.*)\\n\\(', input).group(1).strip(' ')
+    curve_name = re.search('<(.*)>', input).group(1).strip(' ')
+
+    print(x_value)
+    print(y_value)
+    print(curve_name)
+
+    return point.Point(int(x_value, 0), int(y_value, 0), curves[curve_name])
 
 
 def key_generation(ec=curve.secp256k1):
@@ -607,18 +623,19 @@ def musig_ver(R, s, m, *args, ec=curve.secp256k1):
         return False
 
 
-def musig_distributed(m, user_key, pub_keys, address_dict, ec=curve.secp256k1, hash = hs.sha256):
+def musig_distributed(m, user_key, pub_keys, address_dict, hostname, port, ec=curve.secp256k1, hash = hs.sha256):
     # user_key = (priv key, pub key)
-    # pub_keys = (None, pub key)
+    # pub_keys = [pub key
     # address_dict = {pubkey:(ip,port)}
+
+    pub_keys.insert(0, user_key[1])
 
     # the order of <L> must be the same for all signers
     # <L> must be a unique encoding of L = {X1,...,Xn}
     # quicksort or some other adequate sorting algorithm will be implemented here
     # for now, the order is just the received order (which here is the same for all signers)
 
-
-    pub_keys.insert(0, user_key[1])
+    pointsort.sort(pub_keys)
 
     public_key_l = ''
 
@@ -679,16 +696,30 @@ def musig_distributed(m, user_key, pub_keys, address_dict, ec=curve.secp256k1, h
     # Y: 0x280f8e5605faa8fe66fbf1221b75240dbb3ff6370bd9030ec4364809e8a0c77f
     # (On curve <secp256k1>):beb23659edbf8912aad141291f74791badd7d865d220aed2324a6a3b55eddfd4
 
-    # send to signers
-    iterable = []
-    for key, address in address_dict.items():
-        temp = (address, commit)
-        iterable.append(temp)
+    peer_list = []
+    #print('\n------------\n')
+    for key in pub_keys:
+        try:
+            peer_list.append(address_dict[str(key)])
+        except KeyError:
+            peer_list.append((hostname, port))
 
-    network.multi_thread_send_t(iterable)
+    print(address_dict)
+    print('\n')
+    print(pub_keys)
+    print('\n')
+    print(peer_list)
+
+    # send to signers
+    t_list = p2pnetwork.p2p_get((hostname, port), peer_list, commit)
+
+    print(t_list)
+
 
     # receive from other signers
     # colocar antes de mandar para ja esperar se necessario ?
+
+
 
 
 
@@ -762,10 +793,6 @@ def main():
     pub_key_lst = [key2[1], key3[1], key4[1]]
 
     musig_distributed(m, my_key, pub_key_lst, address_dict, ec=curve.secp256k1)
-
-
-
-
 
 
 if __name__ == "__main__":
