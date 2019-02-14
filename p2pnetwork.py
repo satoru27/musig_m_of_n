@@ -2,11 +2,18 @@ import socket
 import threading
 import sys
 import time
+import os
 
 REQUEST_STRING = 'send_package'
 CONTINUE_STRING = 'OK'
 RETRY_MAX = 1000
 PCKG_SIZE = 2048
+
+# Investigar o pq do erro que ocorre mas nao acontece nada e o programa segue normalmente
+# Error: [Errno 9] Bad file descriptor
+# Exiting...
+#
+#
 
 # server connects and sends package to the clients
 class Server:
@@ -14,18 +21,17 @@ class Server:
         # peer_list includes all the addresses
         # the commit or R to be sent
         #print(peer_list)
-        peer_list.remove(my_addr)
+        self.peers = peer_list.copy()
+        self.peers.remove(my_addr)
         self.package = package
         self.sent_counter = 0
-        self.peers_number = len(peer_list)
+        self.peers_number = len(self.peers)
 
         # define the socket
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
 
         self.connections = []
-
-        self.peers = peer_list
 
         self.sock.bind(my_addr)
 
@@ -79,6 +85,11 @@ class Server:
             # thread.daemon = True
             thread.start()
 
+        #self.sock.shutdown(socket.SHUT_RDWR)
+        # a forma correta seria esperar o join, porem parece que o socket bloqueia no recv, testar depois
+        # necessario pq se nao na hora de receber o R o socket nao consegue conectar no mesmo endereco
+        self.sock.close()
+
 
 
     def handler(self, connection):
@@ -92,8 +103,6 @@ class Server:
                     connection.send(self.package.encode('utf-8'))
                     self.sent_counter += 1
 
-                    #connection.close()
-
         except Exception as e:
             print(f'Error: {e}\nExiting...')
             sys.exit()
@@ -101,6 +110,7 @@ class Server:
     def send_permission(self, connection):
         print('-' * 10 + 'SENDING OK' + '-' * 10)
         connection.send(CONTINUE_STRING.encode('utf-8'))
+        connection.close()
 
 
 
@@ -109,6 +119,8 @@ class Client:
     def __init__(self, target_address):
 
         self.continue_permission = False
+
+        self.target_address = target_address
 
         # define the socket
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -155,6 +167,7 @@ class Client:
 
     def receive_package(self):
         print('-' * 10 + 'RECEIVING PACKAGE' + '-' * 10)
+        print(f'FROM: {str(self.target_address)}')
         package = self.sock.recv(PCKG_SIZE).decode('utf-8')
         print(package)
         return package
@@ -168,6 +181,7 @@ class Client:
 
 
 def p2p_get(my_addr, peer_list, package):
+    #os.system('clear')
     # peer list order must be based on the order of the peers public keys, which is in a unique encoding L
     # peer_list = (ip,port)
     if not isinstance(package, str):
@@ -176,7 +190,8 @@ def p2p_get(my_addr, peer_list, package):
     if not isinstance(peer_list, list):
         print('Peer list is invalid')
         sys.exit(0)
-
+    print(f'PEER LIST = {peer_list}')
+    print(f'MY ADDR = {my_addr}')
     peer_queue = peer_list.copy()
     rcv_list = []
 
@@ -193,6 +208,8 @@ def p2p_get(my_addr, peer_list, package):
             # act as client
             client = Client(peer_queue.pop(0))
             rcv_list.append(client.package)
+
+    print(f'AFTER PEER LIST = {peer_list}')
 
     return rcv_list
 
