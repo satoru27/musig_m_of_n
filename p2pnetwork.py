@@ -20,7 +20,7 @@ class Server:
     def __init__(self, peer_list, package, my_addr):
         # peer_list includes all the addresses
         # the commit or R to be sent
-        #print(peer_list)
+        ## print(peer_list)
         self.peers = peer_list.copy()
         self.peers.remove(my_addr)
         self.package = package
@@ -37,7 +37,7 @@ class Server:
 
         self.sock.listen(1)
 
-        print("-" * 10 + "Server Running" + "-" *10)
+        # print("-" * 10 + "Server Running" + "-" *10)
 
         self.run()
 
@@ -48,16 +48,16 @@ class Server:
 
         for k in range(self.peers_number):
             connection, address = self.sock.accept()
-            print(f'Connected to: {address}')
+            # print(f'Connected to: {address}')
             self.connections.append(connection)
 
         # if not (address in self.peers):
-        #     print('Invalid Connection')
+        #     # print('Invalid Connection')
         #     connection.close()
         #     continue
 
         thread_list = []
-        #print(self.connections)
+        ## print(self.connections)
         for connection in self.connections:
             thread = threading.Thread(target=self.handler, args=(connection,))
             thread_list.append(thread)
@@ -77,7 +77,7 @@ class Server:
             else:
                 time.sleep(1)
 
-        print('-' * 10 + 'FINISHED SENDING PACKAGES' + '-' * 10)
+        # print('-' * 10 + 'FINISHED SENDING PACKAGES' + '-' * 10)
 
         for connection in self.connections:
             thread = threading.Thread(target=self.send_permission, args=(connection,))
@@ -99,16 +99,16 @@ class Server:
                 data = connection.recv(PCKG_SIZE)
 
                 if data.decode('utf-8') == REQUEST_STRING:
-                    print('-'*10 + 'SENDING PACKAGE' + '-'*10)
+                    # print('-'*10 + 'SENDING PACKAGE' + '-'*10)
                     connection.send(self.package.encode('utf-8'))
                     self.sent_counter += 1
 
         except Exception as e:
-            print(f'Error: {e}\nExiting...')
+            # print(f'Error: {e}\nExiting...')
             sys.exit()
 
     def send_permission(self, connection):
-        print('-' * 10 + 'SENDING OK' + '-' * 10)
+        # print('-' * 10 + 'SENDING OK' + '-' * 10)
         connection.send(CONTINUE_STRING.encode('utf-8'))
         connection.close()
 
@@ -132,7 +132,7 @@ class Client:
             try:
                 self.sock.connect(target_address)
             except Exception as e:
-                print(f'Caught exception: {e}')
+                # print(f'Caught exception: {e}')
                 time.sleep(1)
                 continue
             break
@@ -149,7 +149,7 @@ class Client:
             self.package = self.receive_package()
 
             if not self.package:
-                print('-' * 10 + 'SERVER FAILED' + '-' * 10)
+                # print('-' * 10 + 'SERVER FAILED' + '-' * 10)
                 break
             else:
                 break
@@ -166,18 +166,18 @@ class Client:
         self.sock.send(REQUEST_STRING.encode('utf-8'))
 
     def receive_package(self):
-        print('-' * 10 + 'RECEIVING PACKAGE' + '-' * 10)
-        print(f'FROM: {str(self.target_address)}')
+        # print('-' * 10 + 'RECEIVING PACKAGE' + '-' * 10)
+        # print(f'FROM: {str(self.target_address)}')
         package = self.sock.recv(PCKG_SIZE).decode('utf-8')
-        print(package)
+        # print(package)
         return package
 
     def receive_ok(self):
-        print('-' * 10 + 'WAITING FOR CONTINUE PERMISSION' + '-' * 10)
+        # print('-' * 10 + 'WAITING FOR CONTINUE PERMISSION' + '-' * 10)
         package = self.sock.recv(PCKG_SIZE).decode('utf-8')
         if package == CONTINUE_STRING:
             self.continue_permission = True
-            print('> OK')
+            # print('> OK')
 
 
 def p2p_get(my_addr, peer_list, package):
@@ -188,15 +188,15 @@ def p2p_get(my_addr, peer_list, package):
         package = str(package)
 
     if not isinstance(peer_list, list):
-        print('Peer list is invalid')
+        # print('Peer list is invalid')
         sys.exit(0)
-    print(f'PEER LIST = {peer_list}')
-    print(f'MY ADDR = {my_addr}')
+    # print(f'PEER LIST = {peer_list}')
+    # print(f'MY ADDR = {my_addr}')
     peer_queue = peer_list.copy()
     rcv_list = []
 
     while peer_queue:
-        #print('!!!!!!!!!!!'+str(peer_list)+'!!!!!!!!!!!')
+        ## print('!!!!!!!!!!!'+str(peer_list)+'!!!!!!!!!!!')
         if peer_queue[0] == my_addr:
             # act as server
             peer_queue.pop(0)
@@ -209,7 +209,7 @@ def p2p_get(my_addr, peer_list, package):
             client = Client(peer_queue.pop(0))
             rcv_list.append(client.package)
 
-    print(f'AFTER PEER LIST = {peer_list}')
+    # print(f'AFTER PEER LIST = {peer_list}')
 
     return rcv_list
 

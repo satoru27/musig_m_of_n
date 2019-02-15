@@ -445,6 +445,10 @@ def musig(m, *args, ec=curve.secp256k1):
     if isinstance(args[0], list):
         args = args[0]
 
+    print(args)
+    pointsort.sort(args)
+    print(args)
+
     public_key_list = ''
     for keys in args:
         public_key_list = public_key_list + ',' + str(keys[0])
@@ -573,6 +577,8 @@ def musig_ver(R, s, m, *args, ec=curve.secp256k1):
     # <L> must be a unique encoding of L = {X1,...,Xn}
     # quicksort or some other adequate sorting algorithm will be implemented here
     # for now, the order is just the received order (which here is the same for all signers)
+    pointsort.sort(args)
+
     public_key_list = ''
     for key in args:
         public_key_list = public_key_list + ',' + str(key)
@@ -720,7 +726,215 @@ def musig_distributed(m, user_key, pub_keys, address_dict, hostname, port, ec=cu
     # colocar antes de mandar para ja esperar se necessario ?
 
 
-
+# def musig_distributed(m, user_key, pub_keys, address_dict, hostname, port, ec=curve.secp256k1, hash = hs.sha256):
+#     # user_key = (priv key, pub key)
+#     # pub_keys = [pub key1, pub_key2,...]
+#     # address_dict = {pubkey:(ip,port), ...}
+#
+#     pub_keys.insert(0, user_key[1])
+#
+#     # the order of <L> must be the same for all signers
+#     # <L> must be a unique encoding of L = {X1,...,Xn}
+#     pointsort.sort(pub_keys)
+#     print(f'\nPUB KEYS ORDER: {pub_keys}\n')
+#
+#     # generating a string with the pub keys that will be used in the a hash
+#     public_key_l = ''
+#     for key in pub_keys:
+#         public_key_l = public_key_l + ',' + str(key)
+#
+#     #type(public_key_l)
+#     #print(public_key_l)
+#
+#     # generating the ai = Hagg(L,Xi) for each public key
+#     i = 0
+#     a_list = []
+#     for key in pub_keys:
+#         a = hash()
+#         a.update((public_key_l + str(key.x) + str(key.y)).encode())
+#         a = a.digest()  # size 48 bytes
+#         a = int.from_bytes(a, byteorder='little')
+#         a = a % ec.q
+#         a_list.append(a)
+#         print(f'a{i + 1} = {a_list[i]}')
+#         i += 1
+#     print(f'\nA LIST: {a_list}\n')
+#
+#
+#     i = 1
+#     first = True
+#     aggregated_key = None
+#     for key in pub_keys:
+#         if first:
+#             aggregated_key = a_list[0] * key
+#             first = False
+#             print(f'X += a{i}*X{i}')
+#         else:
+#             aggregated_key += a_list[i] * key
+#             print(f'X += a{i + 1}*X{i + 1}')
+#             i += 1
+#
+#     print(f'\nAGGREGATED KEY: {aggregated_key}\n')
+#
+#     r = 0
+#     while r == 0:
+#         r = gmp.mpz_random(gmp.random_state(int.from_bytes(urandom(4), byteorder='little')), ec.q)
+#         r = r % ec.q
+#     print(f'Generated r = {r}')
+#     r_point = r * ec.G
+#     print(f'Generated R = ({r_point})')
+#
+#     t = hash()
+#     t.update((str(r_point.x) + str(r_point.y)).encode())
+#     t = t.hexdigest()  # size 48 bytes
+#     # t = int.from_bytes(t, byteorder='little')
+#     print(f'Generated t = ({t})\n')
+#
+#     commit = str(user_key[1]) + SEPARATOR + str(t)
+#
+#     peer_list = []
+#     for key in pub_keys:
+#         try:
+#             peer_list.append(address_dict[str(key)])
+#         except KeyError:
+#             peer_list.append((hostname, port))
+#
+#     # send to signers
+#     t_list_rcv = p2pnetwork.p2p_get((hostname, port), peer_list, commit)
+#     r_point_package = str(user_key[1]) + SEPARATOR + str(r_point)
+#     r_point_list_rcv = p2pnetwork.p2p_get((hostname, port), peer_list, r_point_package)
+#
+#     # print('\n>>> T LIST <<<\n')
+#     # print(t_list_rcv)
+#     # print('\n>>> R POINT LIST <<<\n')
+#     # print(r_point_list_rcv)
+#
+#
+#     ok = check_commits(t_list_rcv, r_point_list_rcv, hash = hs.sha256)
+#     r_point_list = []
+#
+#     for item in r_point_list_rcv:
+#         pub_key, r_point = item.split(SEPARATOR)
+#         r_point_list.append(point_from_str(r_point))
+#
+#     print(f'\nR LIST: {r_point_list}\n')
+#
+#
+#     # os.system('clear')
+#     r_point_sum = r_point_list[0]
+#
+#     for temp_point in r_point_list[0:]:
+#         r_point_sum += temp_point
+#
+#     # computing the challenge c = Hsig(X', R, m)
+#     c = hash()
+#     c.update((str(aggregated_key.x) + str(aggregated_key.y) + str(r_point_sum.x) + str(r_point_sum.y) + m).encode())
+#     c = c.digest()  # size 48 bytes
+#     c = int.from_bytes(c, byteorder='little')
+#     c = c % ec.q
+#     print(f'\nCHALLENGE: {c}\n')
+#
+#     # calculating the signature s1
+#     s1 = (gmp.mpz(r) + gmp.mpz(c) * gmp.mpz(a_list[0]) * gmp.mpz(user_key[0])) % ec.q
+#
+#     # sending s1 and receiving si
+#     s1_package = str(user_key[1]) + SEPARATOR + str(s1)
+#     s_list_rcv = p2pnetwork.p2p_get((hostname, port), peer_list, s1_package)
+#
+#     #print('>>>> S LIST <<<<')
+#     print(f'\nS LIST: {s_list_rcv}\n')
+#
+#     signature = gmp.mpz(0)
+#     for temp in s_list_rcv:
+#         temp_key, si = temp.split(SEPARATOR)
+#         signature += int(si, 0)
+#
+#     signature = signature % ec.q
+#     print(f'\nR: {r_point_sum}\n\nSignature: {signature}')
+#     return r_point_sum, signature
+#
+#
+# def musig_ver(R, s, m, pub_keys, ec=curve.secp256k1, hash = hs.sha256):
+#     # args = [pub_key_1,...,pub_key_k]
+#
+#     # the order of <L> must be the same for all signers
+#     # <L> must be a unique encoding of L = {X1,...,Xn}
+#     # quicksort or some other adequate sorting algorithm will be implemented here
+#     # for now, the order is just the received order (which here is the same for all signers)
+#     pointsort.sort(pub_keys)
+#     print(f'\nPUB KEYS ORDER: {pub_keys}\n')
+#
+#     public_key_string = ''
+#     for key in pub_keys:
+#         public_key_string = public_key_string + SEPARATOR + str(key)
+#     print(f'\nPUB KEY STRING: {public_key_string}\n')
+#     a_list = []
+#     # generating ai = Hagg(L,Xi)
+#     for key in pub_keys:
+#         a = hash()
+#         a.update((public_key_string + str(key.x) + str(key.y)).encode())
+#         a = a.digest()
+#         a = int.from_bytes(a, byteorder='little')
+#         a = a % ec.q
+#         a_list.append(a)
+#
+#     print(f'\nA DICT: {a_dict}\n')
+#
+#     public_key_l = ''
+#
+#     for key in pub_keys:
+#         # public_key_l = public_key_l + ',' + str(key)
+#         public_key_l = public_key_l + SEPARATOR + str(key)
+#
+#     # computing ai = Hagg(L,Xi)
+#     i = 0
+#     a_list = []
+#
+#     for key in pub_keys:
+#         a = hash()
+#         a.update((public_key_l + str(key.x) + str(key.y)).encode())
+#         a = a.digest()  # size 48 bytes
+#         a = int.from_bytes(a, byteorder='little')
+#         a = a % ec.q
+#         a_list.append(a)
+#         #print(f'a{i + 1} = {a_list[i]}')
+#         i += 1
+#
+#     print(f'\nA LIST: {a_list}\n')
+#
+#     # calculating X = sum(ai*Xi)
+#     i = 1
+#     first = True
+#     aggregated_key = None
+#     for key in pub_keys:
+#         if first:
+#             aggregated_key = a_list[0] * key
+#             first = False
+#             #print(f'X += a{i}*X{i}')
+#         else:
+#             aggregated_key += a_list[i] * key
+#             #print(f'X += a{i + 1}*X{i + 1}')
+#             i += 1
+#     print(f'\nAGGREGATED KEY: {aggregated_key}\n')
+#
+#     # computing the challenge c = Hsig(X', R, m)
+#     c = hash()
+#     c.update((str(aggregated_key.x) + str(aggregated_key.y) + str(R.x) + str(R.y) + m).encode())
+#     c = c.digest()  # size 48 bytes
+#     c = int.from_bytes(c, byteorder='little')
+#     c = c % ec.q
+#     print(f'\nCHALLENGE: {c}\n')
+#
+#     # checking if sP = R + sum(ai*c*Xi) = R + c*X'
+#     left = s*ec.G
+#     print(f'\nsP: {left}\n')
+#     right = R + c*aggregated_key
+#     print(f'\nR + c*X: {right}\n')
+#
+#     if left.x == right.x and left.y == right.y:
+#         return True
+#     else:
+#         return False
 
 
 def main():
