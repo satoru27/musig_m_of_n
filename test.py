@@ -235,8 +235,10 @@ from tkinter import font  as tkfont # python 3
 # signer 3: key4, '127.0.0.1', 2438
 
 from musigdistr import *
+import musig
 import sys
 import keystorage
+import os
 
 def test1():
     hostname, port = '127.0.0.1', 2436
@@ -257,7 +259,12 @@ def test1():
 
     pub_key_lst = [key2[1], key3[1]]
 
-    musig_distributed(m, my_key, pub_key_lst, address_dict, hostname, port)
+    R, s = musig_distributed(m, my_key, pub_key_lst, address_dict, hostname, port)
+    #os.system('clear')
+    #print(f'\nR: {R}\ns: {s}\n')
+    pub_key_lst.append(my_key[1])
+    # adicionar a chave do assinanete a list de chaves publicas
+    print(musig_ver(R, s, m, pub_key_lst, ec=curve.secp256k1, hash=hs.sha256))
 
 
 def test2():
@@ -279,7 +286,11 @@ def test2():
 
     pub_key_lst = [key2[1], key3[1]]
 
-    musig_distributed(m, my_key, pub_key_lst, address_dict, hostname, port)
+    R, s = musig_distributed(m, my_key, pub_key_lst, address_dict, hostname, port)
+    #os.system('clear')
+    #print(f'\nR: {R}\ns: {s}\n')
+    pub_key_lst.append(my_key[1])
+    print(musig_ver(R, s, m+'b', pub_key_lst, ec=curve.secp256k1, hash=hs.sha256))
 
 
 def test3():
@@ -301,16 +312,35 @@ def test3():
 
     pub_key_lst = [key2[1], key3[1]]
 
-    musig_distributed(m, my_key, pub_key_lst, address_dict, hostname, port)
+    R, s = musig_distributed(m, my_key, pub_key_lst, address_dict, hostname, port)
+    #os.system('clear')
+    #print(f'\nR: {R}\ns: {s}\n')
+    pub_key_lst.append(my_key[1])
+    print(musig_ver(R, s, m+'a', pub_key_lst, ec=curve.secp256k1, hash=hs.sha256))
 
+
+def test4():
+    my_key = keystorage.import_keys('key4.pem')
+    key2 = keystorage.import_keys('key90.pem')
+    key3 = keystorage.import_keys('key2.pem')
+
+    m = 'teste39826c4b39'
+
+    R,s = musig.musig(m, my_key, [key2, key3])
+    print(musig_ver(R, s, m, [my_key[1],key2[1],key3[1]]))
 
 def main():
     if sys.argv[1] == '1':
+        os.system('clear')
         test1()
     elif sys.argv[1] == '2':
+        os.system('clear')
         test2()
     elif sys.argv[1] == '3':
+        os.system('clear')
         test3()
+    else:
+        test4()
 
 
 if __name__ == "__main__":
