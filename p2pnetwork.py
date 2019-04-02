@@ -4,8 +4,10 @@ import sys
 import time
 import os
 
-REQUEST_STRING = 'send_package'
-CONTINUE_STRING = 'OK'
+SEND_FLAG = '<SEND_PKG>'
+OK_FLAG = '<PKG_OK>'
+CONTINUE_FLAG = '<CONTINUE>'
+
 RETRY_MAX = 1000
 PCKG_SIZE = 2048
 
@@ -26,158 +28,154 @@ class Server:
         self.package = package
         self.sent_counter = 0
         self.peers_number = len(self.peers)
+        self.thread_list = []
 
         # define the socket
-        self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        self.sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        self.server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
 
         self.connections = []
 
-        self.sock.bind(my_addr)
+        self.server_socket.bind(my_addr)
 
-        self.sock.listen(1)
+        self.server_socket.listen(1)
 
         # print("-" * 10 + "Server Running" + "-" *10)
 
         self.run()
 
     def run(self):
-        # i = 0
-        # while i < RETRY_MAX:
-        # i += 1
+        # run the separated threads
+        for peer in range(self.peers_number):
+            print('*** Creating threads ***')
+            thread = threading.Thread(target=self.handler)
+            self.thread_list.append(thread)
 
-        for k in range(self.peers_number):
-            connection, address = self.sock.accept()
-            # print(f'Connected to: {address}')
-            self.connections.append(connection)
-
-        # if not (address in self.peers):
-        #     # print('Invalid Connection')
-        #     connection.close()
-        #     continue
-
-        thread_list = []
-        ## print(self.connections)
-        for connection in self.connections:
-            thread = threading.Thread(target=self.handler, args=(connection,))
-            thread_list.append(thread)
-            thread.daemon = True
-
-        for thread in thread_list:
+        for thread in self.thread_list:
+            print('*** Starting threads ***')
             thread.start()
 
-        # for thread in thread_list:
-        #     thread.join()
+        for thread in self.thread_list:
+            thread.join()
 
-        i = 0
-        while i < RETRY_MAX:
-            i += 1
-            if self.sent_counter == self.peers_number:
-                break
-            else:
-                time.sleep(1)
+        self.server_socket.close()
 
-        # print('-' * 10 + 'FINISHED SENDING PACKAGES' + '-' * 10)
+    def handler(self):
+        print('*** Handler initiated ***')
+        connection_socket, connection_address = self.listen_phase()
 
-        for connection in self.connections:
-            thread = threading.Thread(target=self.send_permission, args=(connection,))
-            thread_list.append(thread)
-            # thread.daemon = True
-            thread.start()
+        ok = self.wait_for_request(connection_socket, connection_address)
+        if not ok:
+            return
 
-        #self.sock.shutdown(socket.SHUT_RDWR)
-        # a forma correta seria esperar o join, porem parece que o socket bloqueia no recv, testar depois
-        # necessario pq se nao na hora de receber o R o socket nao consegue conectar no mesmo endereco
-        self.sock.close()
+        self.send_pckg(connection_socket, connection_address)
+
+        ok = self.receive_pckg_ok(connection_socket, connection_address)
+        if not ok:
+            return
+
+        self.send_continue(connection_socket, connection_address)
+
+        while self.sent_counter != self.peers_number:
+            print(f'<Waiting for other peers to finish...>')
+            time.sleep(1)
+
+        self.end_connection(connection_socket, connection_address)
 
 
+    def listen_phase(self):
+        print(f'<Listening for incoming connections...')
+        connection, address = self.server_socket.accept()
+        print(f'<Listen Phase: accepted connection {connection} from {address}>')
+        return connection, address
 
-    def handler(self, connection):
-        try:
-            while True:
-                # server receives the message
-                data = connection.recv(PCKG_SIZE)
+    def wait_for_request(self, connection_socket, connection_address):
+        print(f'<Waiting for request from: {connection_address}>')
+        request = receive_package(connection_socket)
+        print(f'<Received {request} from {connection_address}>')
+        if request == SEND_FLAG:
+            return True
+        else:
+            return False
 
-                if data.decode('utf-8') == REQUEST_STRING:
-                    # print('-'*10 + 'SENDING PACKAGE' + '-'*10)
-                    connection.send(self.package.encode('utf-8'))
-                    self.sent_counter += 1
+    def send_pckg(self, connection_socket, connection_address):
+        print(f'<Sending \"{self.package}\" to {connection_address}>')
+        send_package(connection_socket, self.package)
 
-        except Exception as e:
-            # print(f'Error: {e}\nExiting...')
-            sys.exit()
+    def receive_pckg_ok(self, connection_socket, connection_address):
+        print(f'<Waiting for ok from: {connection_address}>')
+        ok = receive_package(connection_socket)
+        print(f'<Received {ok} from {connection_address}>')
+        if ok == OK_FLAG:
+            return True
+        else:
+            return False
 
-    def send_permission(self, connection):
-        # print('-' * 10 + 'SENDING OK' + '-' * 10)
-        connection.send(CONTINUE_STRING.encode('utf-8'))
-        connection.close()
+    def send_continue(self, connection_socket, connection_address):
+        print(f'<Sending {CONTINUE_FLAG} to {connection_address}>')
+        send_package(connection_socket, CONTINUE_FLAG)
+        self.sent_counter += 1
 
+    def end_connection(self, connection_socket, connection_address): #should the client do this ?
+        print(f'<Closing connection with {connection_address}>')
+        connection_socket.shutdown(1)
+        connection_socket.close()
+        print(f'<Closed connection with {connection_address}>')
 
 
 # clients wait for the server and receives its package
 class Client:
     def __init__(self, target_address):
-
         self.continue_permission = False
-
         self.target_address = target_address
+        self.connection_socket = None
+        self.package = None
+        self.run()
 
-        # define the socket
-        self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        self.sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+    def run(self):
+        self.connection_setup()
+        self.send_request()
+        self.package = self.receive_pckg()
+        self.send_ok()
+        self.receive_continue()
 
+    def connection_setup(self):
+        self.connection_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.connection_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         i = 0
         while i < RETRY_MAX:
             i += 1
             try:
-                self.sock.connect(target_address)
+                print(f'<Trying to connect to {self.target_address}>')
+                self.connection_socket.connect(self.target_address)
             except Exception as e:
-                # print(f'Caught exception: {e}')
+                print(f'<Caught connection exception: {e}>')
                 time.sleep(1)
                 continue
             break
 
-        request_thread = threading.Thread(target=self.send_package_request)
-        request_thread.daemon = True
-        request_thread.start()
+    def send_request(self):
+        print(f'<Sending {SEND_FLAG} to {self.target_address}>')
+        send_package(self.connection_socket, SEND_FLAG)
 
-        self.package = None
-
-        i = 0
-        while i < RETRY_MAX:
-            i += 1
-            self.package = self.receive_package()
-
-            if not self.package:
-                # print('-' * 10 + 'SERVER FAILED' + '-' * 10)
-                break
-            else:
-                break
-
-        i = 0
-        while i < RETRY_MAX:
-            i += 1
-            self.receive_ok()
-
-            if self.continue_permission:
-                break
-
-    def send_package_request(self):
-        self.sock.send(REQUEST_STRING.encode('utf-8'))
-
-    def receive_package(self):
-        # print('-' * 10 + 'RECEIVING PACKAGE' + '-' * 10)
-        # print(f'FROM: {str(self.target_address)}')
-        package = self.sock.recv(PCKG_SIZE).decode('utf-8')
-        # print(package)
+    def receive_pckg(self):
+        print(f'<Waiting for package from: {self.target_address}>')
+        package = receive_package(self.connection_socket)
+        print(f'<Received \"{package}\" from {self.target_address}>')
         return package
 
-    def receive_ok(self):
-        # print('-' * 10 + 'WAITING FOR CONTINUE PERMISSION' + '-' * 10)
-        package = self.sock.recv(PCKG_SIZE).decode('utf-8')
-        if package == CONTINUE_STRING:
-            self.continue_permission = True
-            # print('> OK')
+    def send_ok(self):
+        print(f'<Sending {OK_FLAG} to {self.target_address}>')
+        send_package(self.connection_socket, OK_FLAG)
+
+    def receive_continue(self):
+        print(f'<Waiting for permission to continue from: {self.target_address}>')
+        ok = receive_package(self.connection_socket)
+        print(f'<Received {ok} from {self.target_address}>')
+        if ok == CONTINUE_FLAG:
+            return True
+        else:
+            return False
 
 
 def p2p_get(my_addr, peer_list, package):
@@ -198,14 +196,16 @@ def p2p_get(my_addr, peer_list, package):
     while peer_queue:
         ## print('!!!!!!!!!!!'+str(peer_list)+'!!!!!!!!!!!')
         if peer_queue[0] == my_addr:
-            # act as server
+            # act as server -> sends his package to clients upon request
             peer_queue.pop(0)
+            print(f'** {my_addr} acting as a server **')
             server = Server(peer_list, package, my_addr)
             # keep the order of the received objects
             rcv_list.append(package)
 
         else:
-            # act as client
+            # act as client -> receives package from server upon request
+            print(f'** {my_addr} acting as a client **')
             client = Client(peer_queue.pop(0))
             rcv_list.append(client.package)
 
@@ -214,5 +214,26 @@ def p2p_get(my_addr, peer_list, package):
     return rcv_list
 
 
-def r_point_converter():
-    pass
+def receive_package(sock):
+    print("<<RECEIVE>>\n")
+    # fragments = []
+    # while True:  # while not done
+    #     chunk = sock.recv(PCKG_SIZE)
+    #     print(f'<<CHUNK: {chunk}>>')
+    #     if not chunk.decode('utf-8'):
+    #         break
+    #     fragments.append(chunk)
+    #
+    # return ''.join(fragments)
+    return sock.recv(PCKG_SIZE).decode('utf-8')
+
+
+def send_package(sock, package):
+    print("<<SEND>>\n")
+    # try:
+    #     sock.sendall(package)
+    # except Exception as e:
+    #     print(f'Caught exception: {e}')
+    #     print(f'Exiting...')
+    #     sys.exit(0)
+    sock.sendall(package.encode('utf-8'))

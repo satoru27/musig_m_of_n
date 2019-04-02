@@ -290,7 +290,7 @@ def test2():
     #os.system('clear')
     #print(f'\nR: {R}\ns: {s}\n')
     pub_key_lst.append(my_key[1])
-    print(musig_ver(R, s, m+'b', pub_key_lst, ec=curve.secp256k1, hash=hs.sha256))
+    print(musig_ver(R, s, m, pub_key_lst, ec=curve.secp256k1, hash=hs.sha256))
 
 
 def test3():
@@ -316,7 +316,7 @@ def test3():
     #os.system('clear')
     #print(f'\nR: {R}\ns: {s}\n')
     pub_key_lst.append(my_key[1])
-    print(musig_ver(R, s, m+'a', pub_key_lst, ec=curve.secp256k1, hash=hs.sha256))
+    print(musig_ver(R, s, m, pub_key_lst, ec=curve.secp256k1, hash=hs.sha256))
 
 
 def test4():
