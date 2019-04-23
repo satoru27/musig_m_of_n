@@ -7,15 +7,19 @@ from math import log2
 import pointsort
 import keystorage
 
+VISUAL = True
+
 
 def build_tree(leafs, tree):
     # using the array format of a tree as the output: https://en.wikipedia.org/wiki/Binary_tree#Arrays
 
     if len(leafs) == 1:
         # if len(leafs) == 1 then leafs[0] is the root of the tree and the recursion should stop
-        #tree.append(leafs[0])
-        tree.append(int.from_bytes(leafs[0], byteorder='little')//(10**70))
-        # the above version of the append is to be used if you want the visual representation of the tree as the binarytree library only takes a number as the input
+        if VISUAL:
+            tree.append(int.from_bytes(leafs[0], byteorder='little') // (10 ** 70))
+            # the above version of the append is to be used if you want the visual representation of the tree as the binarytree library only takes a number as the input
+        else:
+            tree.append(leafs[0])
         return
 
     next_level = []
@@ -26,9 +30,11 @@ def build_tree(leafs, tree):
 
     build_tree(next_level, tree)
     for leaf in leafs:
-        #tree.append(leaf)
-        tree.append(int.from_bytes(leaf, byteorder='little')//(10**70))
-        # the above version of the append is to be used if you want the visual representation of the tree as the binarytree library only takes a number as the input
+        if VISUAL:
+            tree.append(int.from_bytes(leaf, byteorder='little') // (10 ** 70))
+            # the above version of the append is to be used if you want the visual representation of the tree as the binarytree library only takes a number as the input
+        else:
+            tree.append(leaf)
 
 
 def adjust_leafs(leafs):
@@ -37,6 +43,7 @@ def adjust_leafs(leafs):
         # repeat the last entry until the the number of leafs is a power of two
         leafs.append(leafs[-1])
         number_of_entrys = len(leafs)
+
 
 def calculate_aggregated_keys(leafs):
     # calculate all the possible aggregated keys, including 2-of-n, 3-of-n etc
@@ -60,6 +67,7 @@ def calculate_aggregated_keys(leafs):
 
     return out
 
+
 def threaded_hashes(input):
     # calculate hashes in parallel
     # input := list of values to be hashed
@@ -77,9 +85,8 @@ def threaded_hashes(input):
     for thread in thread_list:
         thread.join()
 
-    #sort the output
-
     return output
+
 
 def hash(input, index, output):
     h = hs.sha256()
@@ -87,11 +94,13 @@ def hash(input, index, output):
     h = h.digest()
     output.append((index, h))
 
-def leaf_hash(input1,input2):
+
+def leaf_hash(input1, input2):
     h = hs.sha256()
     h.update(input1)
     h.update(input2)
     return h.digest()
+
 
 def sort_hashes(input):
     # sort a list of hashes in the following format (prefix, hash)
@@ -108,7 +117,7 @@ def sort_hashes(input):
         i, j, k = 0, 0, 0
 
         while i < len(left) and j < len(right):
-            #print(f'right {right[j][0]} left {right[j][0]}')
+            # print(f'right {right[j][0]} left {right[j][0]}')
             if right[j][0] > left[i][0]:
                 input[k] = left[i]
                 i += 1
@@ -127,13 +136,13 @@ def sort_hashes(input):
             j += 1
             k += 1
 
+
 def clear_hash_list(input):
     out = []
     for item in input:
         out.append(item[1])
     return out
 
-# checar se esse calculo da chave agregada esta correto
 
 def calculate_a(subset, ec=curve.secp256k1):
     # PUB KEYS MUST BE SORTED BEFOREHAND
@@ -158,6 +167,34 @@ def calculate_a(subset, ec=curve.secp256k1):
     return subset_a
 
 
+def build_merkle_tree(keys, sorted_keys=False):
+    if not sorted_keys:
+        pointsort.sort(keys)
+
+    aggregated_keys = calculate_aggregated_keys(keys)
+
+    hash_list = threaded_hashes(aggregated_keys)
+
+    sort_hashes(hash_list)
+
+    hash_list = clear_hash_list(hash_list)
+
+    adjust_leafs(hash_list)
+
+    merkle_tree = []
+    build_tree(hash_list, merkle_tree)
+
+    return merkle_tree
+
+
+def produce_proof():
+    pass
+
+
+def verify():
+    pass
+
+
 def main():
     k1 = keystorage.import_keys('key4.pem')
     k2 = keystorage.import_keys('key90.pem')
@@ -167,27 +204,26 @@ def main():
 
     # PUB KEYS MUST BE SORTED
 
-    out = calculate_aggregated_keys(list)
+    # out = calculate_aggregated_keys(list)
+    #
+    # out = threaded_hashes(out)
+    # print(out)
+    #
+    # print(80*'-')
+    # sort_hashes(out)
+    # print(out)
+    #
+    # out = clear_hash_list(out)
+    # print(80 * '-')
+    # print(out)
+    # print(f'LEN -> {len(out)}')
+    #
+    # adjust_leafs(out)
+    # print(80 * '-')
+    # print(out)
+    # print(f'LEN -> {len(out)}')
 
-    out = threaded_hashes(out)
-    print(out)
-
-    print(80*'-')
-    sort_hashes(out)
-    print(out)
-
-    out = clear_hash_list(out)
-    print(80 * '-')
-    print(out)
-    print(f'LEN -> {len(out)}')
-
-    adjust_leafs(out)
-    print(80 * '-')
-    print(out)
-    print(f'LEN -> {len(out)}')
-
-    tree = []
-    build_tree(out,tree)
+    tree = build_merkle_tree(list)
 
     root = bt.build(tree)
     print(root)
