@@ -4,6 +4,7 @@ import threading
 from fastecdsa import curve
 from itertools import combinations
 from math import log2
+import pointsort
 import keystorage
 
 
@@ -12,8 +13,8 @@ def build_tree(leafs, tree):
 
     if len(leafs) == 1:
         # if len(leafs) == 1 then leafs[0] is the root of the tree and the recursion should stop
-        tree.append(leafs[0])
-        #tree.append(int.from_bytes(leafs[0], byteorder='little')//(10**70))
+        #tree.append(leafs[0])
+        tree.append(int.from_bytes(leafs[0], byteorder='little')//(10**70))
         # the above version of the append is to be used if you want the visual representation of the tree as the binarytree library only takes a number as the input
         return
 
@@ -25,8 +26,8 @@ def build_tree(leafs, tree):
 
     build_tree(next_level, tree)
     for leaf in leafs:
-        tree.append(leaf)
-        #tree.append(int.from_bytes(leaf, byteorder='little')//(10**70))
+        #tree.append(leaf)
+        tree.append(int.from_bytes(leaf, byteorder='little')//(10**70))
         # the above version of the append is to be used if you want the visual representation of the tree as the binarytree library only takes a number as the input
 
 
@@ -49,10 +50,12 @@ def calculate_aggregated_keys(leafs):
         comb_set = combinations(leafs, i)
         for subset in comb_set:
             #print(subset)
+            # calculate a for the subset
             subset_len = len(subset)
-            temp = subset[0]
+            subset_a = calculate_a(subset) # using curve.secp256k1 by default
+            temp = subset_a[0]*subset[0]
             for j in range(1, subset_len):
-                temp += subset[j]
+                temp += subset_a[j]*subset[j] # X' = a1*X1 + ... + an*Xn
             out.append(temp)
 
     return out
@@ -68,7 +71,7 @@ def threaded_hashes(input):
     for i in range(input_len):
         thread = threading.Thread(target=hash, args=(input[i], i, output))
         thread_list.append(thread)
-        # thread.daemon = True
+        # thread.daemon = Trueec=curve.secp256k1
         thread.start()
 
     for thread in thread_list:
@@ -130,12 +133,39 @@ def clear_hash_list(input):
         out.append(item[1])
     return out
 
+# checar se esse calculo da chave agregada esta correto
+
+def calculate_a(subset, ec=curve.secp256k1):
+    # PUB KEYS MUST BE SORTED BEFOREHAND
+    # IF THE COMPLETE SET IS ORDERED THEN THE SUBSETS ARE ORDERED
+    # input =: subset of n public keys
+    # output =: [Hagg(<Ln>,X1),Hagg(<Ln>,X2),...,Hagg(<Ln>,Xn)]
+
+    # making the <Ln>
+    subset_l = ''
+    for key in subset:
+        subset_l = subset_l + '|' + str(key)
+
+    subset_a = []
+    for key in subset:
+        a = hs.sha256()
+        a.update((subset_l + str(key.x) + str(key.y)).encode())
+        a = a.digest()  # size 48 bytes
+        a = int.from_bytes(a, byteorder='little')
+        a = a % ec.q
+        subset_a.append(a)
+
+    return subset_a
+
+
 def main():
     k1 = keystorage.import_keys('key4.pem')
     k2 = keystorage.import_keys('key90.pem')
     k3 = keystorage.import_keys('key2.pem')
 
     list = [k1[1], k2[1], k3[1]]
+
+    # PUB KEYS MUST BE SORTED
 
     out = calculate_aggregated_keys(list)
 
