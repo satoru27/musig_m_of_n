@@ -7,7 +7,7 @@ from math import log2
 import pointsort
 import keystorage
 
-VISUAL = True
+VISUAL = False
 
 
 def build_tree(leafs, tree):
@@ -56,14 +56,20 @@ def calculate_aggregated_keys(leafs):
     for i in range(1, n+1):
         comb_set = combinations(leafs, i)
         for subset in comb_set:
-            #print(subset)
-            # calculate a for the subset
+            # print(80 * '-')
+            # print(f'SUBSET:\n{subset}')
             subset_len = len(subset)
-            subset_a = calculate_a(subset) # using curve.secp256k1 by default
-            temp = subset_a[0]*subset[0]
-            for j in range(1, subset_len):
-                temp += subset_a[j]*subset[j] # X' = a1*X1 + ... + an*Xn
-            out.append(temp)
+            if subset_len == 1:
+                out.append(subset[0])
+            else:
+                # print(f'SUBSET LEN: {subset_len}')
+                # calculate a for the subset
+                subset_a = calculate_a(subset) # using curve.secp256k1 by default
+                # print(f'SUBSET A: \n{subset_a}')
+                temp = subset_a[0]*subset[0]
+                for j in range(1, subset_len):
+                    temp += subset_a[j]*subset[j] # X' = a1*X1 + ... + an*Xn
+                out.append(temp)
 
     return out
 
@@ -187,12 +193,93 @@ def build_merkle_tree(keys, sorted_keys=False):
     return merkle_tree
 
 
-def produce_proof():
+def standard_hash(value):
+    h = hs.sha256()
+    h.update((str(value)).encode())
+    return h.digest()
+
+
+def produce_proof(key, tree):
+    key_hash = standard_hash(key)
+
+    print(80 * '-')
+    print(f'Key hash = {key_hash}')
+
+    key_index = None
+    total_nodes = len(tree)
+    i = -1
+
+    # a busca sera feita a partir do final da arvore no formato de lista
+    # uma vez que o hash das chaves se encontram no final da lista
+    # O(n) n := numero de combinacoes de chaves
+    while i > (total_nodes*(-1)):
+        if tree[i] == key_hash:
+            key_index = total_nodes + i # index = len(tree) - reverse position
+            break
+        i -= 1
+
+    print(80 * '-')
+    print(f'Key index = {key_index}')
+
+    proof = []
+
+    tree_search(key_index, tree, proof)
+
+    return proof
+
+
+def tree_search(index, tree, output):
+    if index == 0:
+        return
+
+    parent_index = (index - 1)//2 # // already makes the floor
+
+    print(80 * '-')
+    print(f'PARENT INDEX:{parent_index} - {tree[parent_index]}\nCHILD1 INDEX:{2*parent_index + 1} - {tree[2*parent_index + 1]}\nCHILD2 INDEX:{2*parent_index + 2} - {tree[2*parent_index + 2]}')
+
+    first_child = tree[2*parent_index + 1]
+    second_child = tree[2*parent_index + 2]
+
+    output.append(first_child)
+    output.append(second_child)
+
+    tree_search(parent_index, tree, output)
+
+
+def verify(root, key, proof):
+    hash_value = standard_hash(key)
+    proof_len = len(proof)
+    i = 0
+    print(80 * '-')
+    print(f'VERIFICATION')
+    while i < proof_len:
+        print(f'HASH VALUE: {hash_value}\nPROOF {i}: {proof[i]}\nPROOF {i+1}: {proof[i+1]}')
+        if hash_value == proof[i] or hash_value == proof[i+1]:
+            hash_value = leaf_hash(proof[i], proof[i + 1])
+            i += 2
+            print(f'{i-2} OK - {hash_value}')
+            print(80 * '-')
+            # the last hash calculated will be the proof root
+        else:
+            print(f'{i} X')
+            print(80 * '-')
+            print(f'FAIL -> PROOF MISMATCH')
+            return False
+
+    if root == hash_value:
+        print(80 * '-')
+        print(f'PASS')
+        return True
+    else:
+        print(80 * '-')
+        print(f'FAIL -> ROOT MISMATCH')
+        return False
+
+
+def print_tree(tree):
     pass
 
 
-def verify():
-    pass
 
 
 def main():
@@ -225,8 +312,19 @@ def main():
 
     tree = build_merkle_tree(list)
 
-    root = bt.build(tree)
-    print(root)
+    print(80 * '-')
+    print(f'TREE: \n{tree}')
+
+    proof = produce_proof(list[0], tree)
+
+    print(80 * '-')
+    print(f'PROOF = {proof}')
+
+    result = verify(tree[0], list[0], proof)
+
+
+    #root = bt.build(tree)
+    #print(root)
 
 
 
