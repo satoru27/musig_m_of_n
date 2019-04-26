@@ -267,8 +267,8 @@ def musig_ver(R, s, m, pub_keys_entry, ec=curve.secp256k1, hash = hs.sha256):
         return False
 
 
-def musig_ver_with_key_verification(R, s, m, pub_keys_entry, signing_pub_key, proof, restrictions=None,
-                                    ec=curve.secp256k1, hash=hs.sha256):
+def musig_ver_with_key_verification(R, s, m, pub_keys_entry, signing_pub_key, proof, root=None, complete_pub_key_lst=None,
+                                    restrictions=None,ec=curve.secp256k1, hash=hs.sha256):
     # R: elliptic curve point
     # s: int/mpz
     # m: string
@@ -276,12 +276,24 @@ def musig_ver_with_key_verification(R, s, m, pub_keys_entry, signing_pub_key, pr
     # pub_keys: [pub_key_1,...,pub_key_k]
     # ec: elliptic curve
 
-    print(80*'-')
-    print(f'RESTRICTIONS: {restrictions}')
+    key_ok = False
 
-    merkle_tree = merkle.build_merkle_tree(pub_keys_entry, sorted_keys=False, restrictions=restrictions)
+    if root is None:
 
-    key_ok = merkle.verify(merkle_tree[0], signing_pub_key, proof)
+        if complete_pub_key_lst is None:
+            complete_pub_key_lst = pub_keys_entry
+
+        print(80*'-')
+        print(f'RESTRICTIONS: {restrictions}')
+
+        merkle_tree = merkle.build_merkle_tree(complete_pub_key_lst, sorted_keys=False, restrictions=restrictions)
+
+        key_ok = merkle.verify(merkle_tree[0], signing_pub_key, proof)
+
+    else:
+
+        key_ok = merkle.verify(root, signing_pub_key, proof)
+
     if not key_ok:
         print('KEY VERIFICATION FAILED')
         return False

@@ -239,6 +239,7 @@ import musig
 import sys
 import keystorage
 import os
+import merkle
 
 def test1():
     input('FIRE_1>')
@@ -442,6 +443,121 @@ def test4():
                                     ec=curve.secp256k1)
     print(f'RESULT: {result}')
 
+def test10():
+    input('FIRE_10>')
+    hostname, port = '127.0.0.1', 2436
+
+    my_key = keystorage.import_keys('key90.pem')
+    key2 = keystorage.import_keys('key2.pem')
+
+    key3 = keystorage.import_keys('key4.pem')
+    key4 = keystorage.import_keys('k2.pem')
+
+    restriction = [(my_key[1], key2[1])]
+    #restriction = None
+
+    key2 = (None, key2[1])
+    key3 = (None, key3[1])
+    key4 = (None, key4[1])
+
+    addr2 = ('127.0.0.1', 2437)
+
+    m = 'teste39826c4b39'
+
+    address_dict = {str(key2[1]): addr2}
+    pub_key_lst = [key2[1]]
+
+    complete_pub_key_lst = [my_key[1], key2[1], key3[1], key4[1]]
+
+    # R, s = musig_distributed(m, my_key, pub_key_lst, address_dict, hostname, port)
+    # #os.system('clear')
+    # print(f'\nR: {R}\ns: {s}\n')
+    #
+    # pub_key_lst.append(my_key[1])
+    # #adicionar a chave do assinanete a list de chaves publicas
+    # print(musig_ver(R, s, m, pub_key_lst, ec=curve.secp256k1, hash=hs.sha256))
+
+
+    r_point, signature, aggregated_key, proof = musig_distributed_with_key_verification(m, my_key, pub_key_lst,
+                                                                                        address_dict, hostname,
+                                                                                        port, ec=curve.secp256k1,
+                                                                                        hash=hs.sha256,
+                                                                                        complete_pub_keys_list=complete_pub_key_lst,
+                                                                                        restrictions=restriction)
+
+    print(80*'-')
+    print(f'{r_point}')
+    print(f'{signature}')
+    print(f'{aggregated_key}')
+    print(f'{proof}')
+
+    merkle_tree = merkle.build_merkle_tree(complete_pub_key_lst, sorted_keys=False, restrictions=None)
+
+    pub_key_lst.append(my_key[1])
+    result = musig_ver_with_key_verification(r_point, signature, m, pub_key_lst, aggregated_key, proof,root = merkle_tree[0],
+                                             complete_pub_key_lst=complete_pub_key_lst,
+                                             restrictions=restriction,
+                                             ec=curve.secp256k1)
+    print(f'RESULT: {result}')
+
+
+def test20():
+    input('FIRE_20>')
+    hostname, port = '127.0.0.1', 2437
+
+    my_key = keystorage.import_keys('key2.pem')
+    key2 = keystorage.import_keys('key90.pem')
+
+    key3 = keystorage.import_keys('key4.pem')
+    key4 = keystorage.import_keys('k2.pem')
+
+    restriction = [(my_key[1], key2[1])]
+    #restriction = None
+
+    key2 = (None, key2[1])
+    key3 = (None, key3[1])
+    key4 = (None, key4[1])
+
+    addr2 = ('127.0.0.1', 2436)
+
+    m = 'teste39826c4b39'
+
+    address_dict = {str(key2[1]): addr2}
+    pub_key_lst = [key2[1]]
+
+    complete_pub_key_lst = [my_key[1], key2[1], key3[1], key4[1]]
+
+    # R, s = musig_distributed(m, my_key, pub_key_lst, address_dict, hostname, port)
+    # #os.system('clear')
+    # print(f'\nR: {R}\ns: {s}\n')
+    #
+    # pub_key_lst.append(my_key[1])
+    # #adicionar a chave do assinanete a list de chaves publicas
+    # print(musig_ver(R, s, m, pub_key_lst, ec=curve.secp256k1, hash=hs.sha256))
+
+    r_point, signature, aggregated_key, proof = musig_distributed_with_key_verification(m, my_key, pub_key_lst,
+                                                                                        address_dict, hostname,
+                                                                                        port, ec=curve.secp256k1,
+                                                                                        hash=hs.sha256,
+                                                                                        complete_pub_keys_list=complete_pub_key_lst,
+                                                                                        restrictions=None)
+
+    print(80 * '-')
+    print(f'{r_point}')
+    print(f'{signature}')
+    print(f'{aggregated_key}')
+    print(f'{proof}')
+
+    merkle_tree = merkle.build_merkle_tree(complete_pub_key_lst, sorted_keys=False, restrictions=None)
+
+    pub_key_lst.append(my_key[1])
+    result = musig_ver_with_key_verification(r_point, signature, m, pub_key_lst, aggregated_key, proof, root=merkle_tree[0],
+                                             complete_pub_key_lst=complete_pub_key_lst,
+                                             restrictions=restriction,
+                                             ec=curve.secp256k1)
+    print(f'RESULT: {result}')
+
+
 def main():
     if sys.argv[1] == '1':
         os.system('clear')
@@ -452,6 +568,12 @@ def main():
     elif sys.argv[1] == '3':
         os.system('clear')
         test3()
+    elif sys.argv[1] == '10':
+        os.system('clear')
+        test10()
+    elif sys.argv[1] == '20':
+        os.system('clear')
+        test20()
     else:
         os.system('clear')
         test4()
