@@ -6,6 +6,7 @@ import pointsort
 import p2pnetwork
 import re
 from fastecdsa import point
+import merkle
 
 
 def musig(m, my_key, key_lst, ec=curve.secp256k1):
@@ -206,4 +207,3 @@ def musig_ver(R, s, m, pub_keys, ec=curve.secp256k1):
         return True
     else:
         return False
-

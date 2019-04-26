@@ -241,93 +241,206 @@ import keystorage
 import os
 
 def test1():
+    input('FIRE_1>')
     hostname, port = '127.0.0.1', 2436
 
     my_key = keystorage.import_keys('key90.pem')
     key2 = keystorage.import_keys('key2.pem')
     key3 = keystorage.import_keys('key4.pem')
+    key4 = keystorage.import_keys('k2.pem')
+
+    restriction = [(my_key[1], key2[1], key3[1], key4[1])]
 
     key2 = (None, key2[1])
     key3 = (None, key3[1])
+    key4 = (None, key4[1])
 
     addr2 = ('127.0.0.1', 2437)
     addr3 = ('127.0.0.1', 2438)
+    addr4 = ('127.0.0.1', 2439)
 
     m = 'teste39826c4b39'
 
-    address_dict = {str(key2[1]): addr2, str(key3[1]): addr3}
+    address_dict = {str(key2[1]): addr2, str(key3[1]): addr3, str(key4[1]):addr4}
 
-    pub_key_lst = [key2[1], key3[1]]
+    pub_key_lst = [key2[1], key3[1], key4[1]]
 
-    R, s = musig_distributed(m, my_key, pub_key_lst, address_dict, hostname, port)
-    #os.system('clear')
-    #print(f'\nR: {R}\ns: {s}\n')
+    # R, s = musig_distributed(m, my_key, pub_key_lst, address_dict, hostname, port)
+    # #os.system('clear')
+    # print(f'\nR: {R}\ns: {s}\n')
+    #
+    # pub_key_lst.append(my_key[1])
+    # #adicionar a chave do assinanete a list de chaves publicas
+    # print(musig_ver(R, s, m, pub_key_lst, ec=curve.secp256k1, hash=hs.sha256))
+
+    r_point, signature, aggregated_key, proof = musig_distributed_with_key_verification(m, my_key, pub_key_lst,
+                                                                                        address_dict, hostname,
+                                                                                        port, ec=curve.secp256k1,
+                                                                                        hash=hs.sha256,
+                                                                                        complete_pub_keys_list=None,
+                                                                                        restrictions=None)
+
+    print(80*'-')
+    print(f'{r_point}')
+    print(f'{signature}')
+    print(f'{aggregated_key}')
+    print(f'{proof}')
+
     pub_key_lst.append(my_key[1])
-    # adicionar a chave do assinanete a list de chaves publicas
-    print(musig_ver(R, s, m, pub_key_lst, ec=curve.secp256k1, hash=hs.sha256))
-
+    result = musig_ver_with_key_verification(r_point, signature, m, pub_key_lst, aggregated_key, proof,
+                                             restrictions=restriction,
+                                             ec=curve.secp256k1)
+    print(f'RESULT: {result}')
 
 def test2():
+    input('FIRE_2>')
     hostname, port = '127.0.0.1', 2437
 
     my_key = keystorage.import_keys('key2.pem')
     key2 = keystorage.import_keys('key90.pem')
     key3 = keystorage.import_keys('key4.pem')
+    key4 = keystorage.import_keys('k2.pem')
 
     key2 = (None, key2[1])
     key3 = (None, key3[1])
+    key4 = (None, key4[1])
+
+    restriction = [(my_key[1], key2[1], key3[1], key4[1])]
 
     addr2 = ('127.0.0.1', 2436)
     addr3 = ('127.0.0.1', 2438)
+    addr4 = ('127.0.0.1', 2439)
 
     m = 'teste39826c4b39'
 
-    address_dict = {str(key2[1]): addr2, str(key3[1]): addr3}
+    address_dict = {str(key2[1]): addr2, str(key3[1]): addr3, str(key4[1]): addr4}
 
-    pub_key_lst = [key2[1], key3[1]]
+    pub_key_lst = [key2[1], key3[1], key4[1]]
 
-    R, s = musig_distributed(m, my_key, pub_key_lst, address_dict, hostname, port)
-    #os.system('clear')
-    #print(f'\nR: {R}\ns: {s}\n')
+    # R, s = musig_distributed(m, my_key, pub_key_lst, address_dict, hostname, port)
+    # #os.system('clear')
+    # print(f'\nR: {R}\ns: {s}\n')
+    # pub_key_lst.append(my_key[1])
+    # print(musig_ver(R, s, m, pub_key_lst, ec=curve.secp256k1, hash=hs.sha256))
+    r_point, signature, aggregated_key, proof = musig_distributed_with_key_verification(m, my_key, pub_key_lst,
+                                                                                        address_dict, hostname,
+                                                                                        port, ec=curve.secp256k1,
+                                                                                        hash=hs.sha256,
+                                                                                        complete_pub_keys_list=None,
+                                                                                        restrictions=None)
+
+    print(80 * '-')
+    print(f'{r_point}')
+    print(f'{signature}')
+    print(f'{aggregated_key}')
+    print(f'{proof}')
+
     pub_key_lst.append(my_key[1])
-    print(musig_ver(R, s, m, pub_key_lst, ec=curve.secp256k1, hash=hs.sha256))
-
+    result = musig_ver_with_key_verification(r_point, signature, m, pub_key_lst, aggregated_key, proof,
+                                             restrictions=restriction,
+                                             ec=curve.secp256k1)
+    print(f'RESULT: {result}')
 
 def test3():
+    input('FIRE_3>')
     hostname, port = '127.0.0.1', 2438
 
     my_key = keystorage.import_keys('key4.pem')
     key2 = keystorage.import_keys('key90.pem')
     key3 = keystorage.import_keys('key2.pem')
+    key4 = keystorage.import_keys('k2.pem')
 
     key2 = (None, key2[1])
     key3 = (None, key3[1])
+    key4 = (None, key4[1])
+
+    restriction = [(my_key[1], key2[1], key3[1], key4[1])]
 
     addr2 = ('127.0.0.1', 2436)
     addr3 = ('127.0.0.1', 2437)
+    addr4 = ('127.0.0.1', 2439)
 
     m = 'teste39826c4b39'
 
-    address_dict = {str(key2[1]): addr2, str(key3[1]): addr3}
+    address_dict = {str(key2[1]): addr2, str(key3[1]): addr3, str(key4[1]): addr4}
 
-    pub_key_lst = [key2[1], key3[1]]
+    pub_key_lst = [key2[1], key3[1], key4[1]]
 
-    R, s = musig_distributed(m, my_key, pub_key_lst, address_dict, hostname, port)
-    #os.system('clear')
-    #print(f'\nR: {R}\ns: {s}\n')
+    # R, s = musig_distributed(m, my_key, pub_key_lst, address_dict, hostname, port)
+    # #os.system('clear')
+    # print(f'\nR: {R}\ns: {s}\n')
+    # pub_key_lst.append(my_key[1])
+    # print(musig_ver(R, s, m, pub_key_lst, ec=curve.secp256k1, hash=hs.sha256))
+
+    r_point, signature, aggregated_key, proof = musig_distributed_with_key_verification(m, my_key, pub_key_lst,
+                                                                                        address_dict, hostname,
+                                                                                        port, ec=curve.secp256k1,
+                                                                                        hash=hs.sha256,
+                                                                                        complete_pub_keys_list=None,
+                                                                                        restrictions=None)
+
+    print(80 * '-')
+    print(f'{r_point}')
+    print(f'{signature}')
+    print(f'{aggregated_key}')
+    print(f'{proof}')
+
     pub_key_lst.append(my_key[1])
-    print(musig_ver(R, s, m, pub_key_lst, ec=curve.secp256k1, hash=hs.sha256))
-
+    result = musig_ver_with_key_verification(r_point, signature, m, pub_key_lst, aggregated_key, proof,
+                                             restrictions=restriction,
+                                             ec=curve.secp256k1)
+    print(f'RESULT: {result}')
 
 def test4():
-    my_key = keystorage.import_keys('key4.pem')
-    key2 = keystorage.import_keys('key90.pem')
-    key3 = keystorage.import_keys('key2.pem')
+    input('FIRE_4>')
+    hostname, port = '127.0.0.1', 2439
+
+    my_key = keystorage.import_keys('k2.pem')
+    key2 = keystorage.import_keys('key2.pem')
+    key3 = keystorage.import_keys('key4.pem')
+    key4 = keystorage.import_keys('key90.pem')
+
+    key2 = (None, key2[1])
+    key3 = (None, key3[1])
+    key4 = (None, key4[1])
+
+    restriction = [(my_key[1], key2[1], key3[1], key4[1])]
+
+    addr2 = ('127.0.0.1', 2437)
+    addr3 = ('127.0.0.1', 2438)
+    addr4 = ('127.0.0.1', 2436)
 
     m = 'teste39826c4b39'
 
-    R,s = musig.musig(m, my_key, [key2, key3])
-    print(musig_ver(R, s, m, [my_key[1],key2[1],key3[1]]))
+    address_dict = {str(key2[1]): addr2, str(key3[1]): addr3, str(key4[1]): addr4}
+
+    pub_key_lst = [key2[1], key3[1], key4[1]]
+
+    # R, s = musig_distributed(m, my_key, pub_key_lst, address_dict, hostname, port)
+    # #os.system('clear')
+    # print(f'\nR: {R}\ns: {s}\n')
+    #
+    # pub_key_lst.append(my_key[1])
+    # #adicionar a chave do assinante a list de chaves publicas
+    # print(musig_ver(R, s, m, pub_key_lst, ec=curve.secp256k1, hash=hs.sha256))
+
+    r_point, signature, aggregated_key, proof = musig_distributed_with_key_verification(m, my_key, pub_key_lst,
+                                                                                        address_dict, hostname,
+                                                                                        port, ec=curve.secp256k1,
+                                                                                        hash=hs.sha256,
+                                                                                        complete_pub_keys_list=None,
+                                                                                        restrictions=None)
+
+    print(80 * '-')
+    print(f'{r_point}')
+    print(f'{signature}')
+    print(f'{aggregated_key}')
+    print(f'{proof}')
+
+    pub_key_lst.append(my_key[1])
+    result = musig_ver_with_key_verification(r_point, signature, m, pub_key_lst, aggregated_key, proof, restrictions=restriction,
+                                    ec=curve.secp256k1)
+    print(f'RESULT: {result}')
 
 def main():
     if sys.argv[1] == '1':
@@ -340,6 +453,7 @@ def main():
         os.system('clear')
         test3()
     else:
+        os.system('clear')
         test4()
 
 

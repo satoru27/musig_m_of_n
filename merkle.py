@@ -157,9 +157,19 @@ def calculate_a(subset, ec=curve.secp256k1):
     # output =: [Hagg(<Ln>,X1),Hagg(<Ln>,X2),...,Hagg(<Ln>,Xn)]
 
     # making the <Ln>
-    subset_l = ''
-    for key in subset:
-        subset_l = subset_l + '|' + str(key)
+    # subset_l = ''
+    # for key in subset:
+    #     subset_l = subset_l + '|' + str(key)
+
+    # gambiarra temporaria
+    # str(tuple) != str(subset)
+    # logo, como no musig o str(keys) e uma lista e aqui str(keys) e uma tupla, gera diferença
+    temp = []
+    for item in subset:
+        temp.append(item)
+    subset_l = str(temp)
+    print(80*'-')
+    print(f'SUBSET: {temp}')
 
     subset_a = []
     for key in subset:
@@ -170,14 +180,19 @@ def calculate_a(subset, ec=curve.secp256k1):
         a = a % ec.q
         subset_a.append(a)
 
+    print(f'SUBSET_A: {subset_a}')
+
     return subset_a
 
 
-def build_merkle_tree(keys, sorted_keys=False):
+def build_merkle_tree(keys, sorted_keys=False, restrictions=None):
     if not sorted_keys:
         pointsort.sort(keys)
 
-    aggregated_keys = calculate_aggregated_keys(keys)
+    if restrictions is None:
+        aggregated_keys = calculate_aggregated_keys(keys)
+    else:
+        aggregated_keys = calculate_aggregated_keys_with_restrictions(keys, restrictions)
 
     hash_list = threaded_hashes(aggregated_keys)
 
@@ -230,6 +245,11 @@ def produce_proof(key, tree):
 
 def tree_search(index, tree, output):
     if index == 0:
+        print('INDEX IS ROOT')
+        return
+
+    if index is None:
+        print('KEY HASH NOT FOUND')
         return
 
     parent_index = (index - 1)//2 # // already makes the floor
@@ -268,7 +288,7 @@ def verify(root, key, proof):
 
     if root == hash_value:
         print(80 * '-')
-        print(f'PASS')
+        print(f'PASS -> KEY IS VALID')
         return True
     else:
         print(80 * '-')
@@ -280,6 +300,76 @@ def print_tree(tree):
     pass
 
 
+# ------------------ TESTING BUILD TREE WITH RESTRICTIONS ---------------------
+
+def sort_restriction(restrictions):
+    # restrictions := [(key1),(key1,key2),...]
+    # there is a great chance that the restrictions are unordered with relation to the subsets, so we need to
+    # internally sort them
+
+    ordered_restrictions = []
+
+    for restriction in restrictions:
+        # print(80 * '-')
+        # print(f'RESTRICTION:\n{restriction}')
+        temp = []
+        for item in restriction:
+            temp.append(item)
+        pointsort.sort(temp)
+        # print(f'SORTED:\n{temp}')
+        # print(f'TUPLE AGAIN:\n{tuple(temp)}')
+        ordered_restrictions.append(tuple(temp))
+
+    return ordered_restrictions
+
+
+def calculate_aggregated_keys_with_restrictions(leafs, restrictions):
+    # calculate all the possible aggregated keys, including 2-of-n, 3-of-n etc
+    # input := list of public keys
+    # output := list of all possible aggregated keys in a specific order
+
+    # restrictions must be in the form
+    ordered_restrictions = sort_restriction(restrictions)
+
+    out = []
+    n = len(leafs)
+
+    for i in range(1, n+1):
+        comb_set = combinations(leafs, i)
+        for subset in comb_set:
+            print(80 * '-')
+            print(f'SUBSET:\n{subset}')
+            print(f'RESTRICTIONS:\n{ordered_restrictions}')
+            if subset in ordered_restrictions:
+                out.append(None)
+            else:
+                subset_len = len(subset)
+                if subset_len == 1:
+                    out.append(subset[0])
+                else:
+                    # print(f'SUBSET LEN: {subset_len}')
+                    # calculate a for the subset
+                    subset_a = calculate_a(subset) # using curve.secp256k1 by default
+                    # print(f'SUBSET A: \n{subset_a}')
+                    temp = subset_a[0]*subset[0]
+                    for j in range(1, subset_len):
+                        temp += subset_a[j]*subset[j] # X' = a1*X1 + ... + an*Xn
+                    out.append(temp)
+
+    i = 0
+    for item in out:
+        j = i-1
+        if item is None:
+            while out[j] is None:
+                j -= 1 # achar o primeiro elemento diferente de None anterior ao None atual
+                       # o while e necessario pois se out[0] = None a solucao seria colocar o ultimo elemento
+                       # de out no lugar, mas e se esse elemento por None tambem ? Por simplicidade
+                       # acredito que esta e a melhor maneira. Mas fora esse caso, o programa nao ira entrar no while
+                       # uma vez que i-1 sera um valor diferente de None
+            out[i] = out[j]
+        i += 1
+
+    return out
 
 
 def main():
@@ -311,20 +401,21 @@ def main():
     # print(f'LEN -> {len(out)}')
 
     tree = build_merkle_tree(list)
+    #tree = build_merkle_tree(list,restrictions=[(list[1], list[2])])
 
-    print(80 * '-')
-    print(f'TREE: \n{tree}')
+    #print(80 * '-')
+    #print(f'TREE: \n{tree}')
 
-    proof = produce_proof(list[0], tree)
+    #proof = produce_proof(list[0], tree)
 
-    print(80 * '-')
-    print(f'PROOF = {proof}')
+    #print(80 * '-')
+    #print(f'PROOF = {proof}')
 
-    result = verify(tree[0], list[0], proof)
+    #result = verify(tree[0], list[0], proof)
 
 
-    #root = bt.build(tree)
-    #print(root)
+    root = bt.build(tree)
+    print(root)
 
 
 
