@@ -308,7 +308,7 @@ def musig_ver_with_key_verification(R, s, m, pub_keys_entry, signing_pub_key, pr
         print('KEY VERIFICATION FAILED')
         return False
 
-    return musig_ver(R, s, m, pub_keys_entry, ec=ec, hash=hash, complete_pub_key_lst = complete_pub_key_lst)
+    return musig_ver(R, s, m, pub_keys_entry, ec=ec, hash=hash, complete_pub_keys_list = complete_pub_key_lst)
 
 
 
@@ -446,7 +446,10 @@ def musig_distributed_with_key_verification(m, user_key, pub_keys_entry, address
     print(f'RESTRICTIONS: {restrictions}')
     print(f'COMPLETE PUB KEYS LIST:\n{complete_pub_keys_list}')
     merkle_tree = merkle.build_merkle_tree(complete_pub_keys_list, sorted_keys=True, restrictions=restrictions)
+
+    print('$'*80)
     print(f'MERKLE TREE:\n{merkle_tree}')
+    print('$' * 80)
     proof = merkle.produce_proof(aggregated_key, merkle_tree)
 
     return r_point, signature, aggregated_key, proof

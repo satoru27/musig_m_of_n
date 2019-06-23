@@ -7,7 +7,7 @@ from itertools import combinations
 import pointsort
 import keystorage
 
-VISUAL = True
+VISUAL = False
 
 
 def build_tree(leafs, tree):

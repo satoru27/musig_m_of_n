@@ -250,7 +250,8 @@ def test1():
     key3 = keystorage.import_keys('key4.pem')
     key4 = keystorage.import_keys('k2.pem')
 
-    restriction = [(my_key[1], key2[1], key3[1], key4[1])]
+    #restriction = [(my_key[1], key2[1], key3[1], key4[1])]
+    restriction = None
 
     key2 = (None, key2[1])
     key3 = (None, key3[1])
@@ -279,7 +280,7 @@ def test1():
                                                                                         port, ec=curve.secp256k1,
                                                                                         hash=hs.sha256,
                                                                                         complete_pub_keys_list=None,
-                                                                                        restrictions=None)
+                                                                                        restrictions=restriction)
 
     print(80*'-')
     print(f'{r_point}')
@@ -306,7 +307,8 @@ def test2():
     key3 = (None, key3[1])
     key4 = (None, key4[1])
 
-    restriction = [(my_key[1], key2[1], key3[1], key4[1])]
+    # restriction = [(my_key[1], key2[1], key3[1], key4[1])]
+    restriction = None
 
     addr2 = ('127.0.0.1', 2436)
     addr3 = ('127.0.0.1', 2438)
@@ -328,7 +330,7 @@ def test2():
                                                                                         port, ec=curve.secp256k1,
                                                                                         hash=hs.sha256,
                                                                                         complete_pub_keys_list=None,
-                                                                                        restrictions=None)
+                                                                                        restrictions=restriction)
 
     print(80 * '-')
     print(f'{r_point}')
@@ -355,7 +357,8 @@ def test3():
     key3 = (None, key3[1])
     key4 = (None, key4[1])
 
-    restriction = [(my_key[1], key2[1], key3[1], key4[1])]
+    # restriction = [(my_key[1], key2[1], key3[1], key4[1])]
+    restriction = None
 
     addr2 = ('127.0.0.1', 2436)
     addr3 = ('127.0.0.1', 2437)
@@ -378,7 +381,7 @@ def test3():
                                                                                         port, ec=curve.secp256k1,
                                                                                         hash=hs.sha256,
                                                                                         complete_pub_keys_list=None,
-                                                                                        restrictions=None)
+                                                                                        restrictions=restriction)
 
     print(80 * '-')
     print(f'{r_point}')
@@ -405,7 +408,8 @@ def test4():
     key3 = (None, key3[1])
     key4 = (None, key4[1])
 
-    restriction = [(my_key[1], key2[1], key3[1], key4[1])]
+    # restriction = [(my_key[1], key2[1], key3[1], key4[1])]
+    restriction = None
 
     addr2 = ('127.0.0.1', 2437)
     addr3 = ('127.0.0.1', 2438)
@@ -430,7 +434,7 @@ def test4():
                                                                                         port, ec=curve.secp256k1,
                                                                                         hash=hs.sha256,
                                                                                         complete_pub_keys_list=None,
-                                                                                        restrictions=None)
+                                                                                        restrictions=restriction)
 
     print(80 * '-')
     print(f'{r_point}')
@@ -453,7 +457,7 @@ def test10():
     key3 = keystorage.import_keys('key4.pem')
     key4 = keystorage.import_keys('k2.pem')
 
-    restriction = [(my_key[1], key2[1])]
+    restriction = [(my_key[1], key2[1], key3[1], key4[1])]
     #restriction = None
 
     key2 = (None, key2[1])
@@ -461,11 +465,13 @@ def test10():
     key4 = (None, key4[1])
 
     addr2 = ('127.0.0.1', 2437)
+    addr3 = ('127.0.0.1', 2438)
+    addr4 = ('127.0.0.1', 2439)
 
     m = 'teste39826c4b39'
 
-    address_dict = {str(key2[1]): addr2}
-    pub_key_lst = [key2[1]]
+    address_dict = {str(key2[1]): addr2,str(key3[1]): addr3,str(key4[1]): addr4}
+    pub_key_lst = [key2[1],key3[1],key4[1]]
 
     complete_pub_key_lst = [my_key[1], key2[1], key3[1], key4[1]]
 
@@ -491,7 +497,11 @@ def test10():
     print(f'{aggregated_key}')
     print(f'{proof}')
 
-    merkle_tree = merkle.build_merkle_tree(complete_pub_key_lst, sorted_keys=False, restrictions=None)
+    merkle_tree = merkle.build_merkle_tree(complete_pub_key_lst, sorted_keys=False, restrictions=restriction)
+
+    print('$' * 80)
+    print(f'MERKLE TREE:\n{merkle_tree}')
+    print('$' * 80)
 
     pub_key_lst.append(my_key[1])
     result = musig_ver_with_key_verification(r_point, signature, m, pub_key_lst, aggregated_key, proof,root = merkle_tree[0],
@@ -511,7 +521,7 @@ def test20():
     key3 = keystorage.import_keys('key4.pem')
     key4 = keystorage.import_keys('k2.pem')
 
-    restriction = [(my_key[1], key2[1])]
+    restriction = [(my_key[1], key2[1], key3[1], key4[1])]
     #restriction = None
 
     key2 = (None, key2[1])
@@ -519,11 +529,14 @@ def test20():
     key4 = (None, key4[1])
 
     addr2 = ('127.0.0.1', 2436)
+    addr3 = ('127.0.0.1', 2438)
+    addr4 = ('127.0.0.1', 2439)
+
 
     m = 'teste39826c4b39'
 
-    address_dict = {str(key2[1]): addr2}
-    pub_key_lst = [key2[1]]
+    address_dict = {str(key2[1]): addr2,str(key3[1]): addr3,str(key4[1]): addr4}
+    pub_key_lst = [key2[1],key3[1],key4[1]]
 
     complete_pub_key_lst = [my_key[1], key2[1], key3[1], key4[1]]
 
@@ -540,7 +553,7 @@ def test20():
                                                                                         port, ec=curve.secp256k1,
                                                                                         hash=hs.sha256,
                                                                                         complete_pub_keys_list=complete_pub_key_lst,
-                                                                                        restrictions=None)
+                                                                                        restrictions=restriction)
 
     print(80 * '-')
     print(f'{r_point}')
@@ -548,10 +561,141 @@ def test20():
     print(f'{aggregated_key}')
     print(f'{proof}')
 
-    merkle_tree = merkle.build_merkle_tree(complete_pub_key_lst, sorted_keys=False, restrictions=None)
+    merkle_tree = merkle.build_merkle_tree(complete_pub_key_lst, sorted_keys=False, restrictions=restriction)
+
+    print('$' * 80)
+    print(f'MERKLE TREE:\n{merkle_tree}')
+    print('$' * 80)
 
     pub_key_lst.append(my_key[1])
     result = musig_ver_with_key_verification(r_point, signature, m, pub_key_lst, aggregated_key, proof, root=merkle_tree[0],
+                                             complete_pub_key_lst=complete_pub_key_lst,
+                                             restrictions=restriction,
+                                             ec=curve.secp256k1)
+    print(f'RESULT: {result}')
+
+def test30():
+    input('FIRE_30>')
+    hostname, port = '127.0.0.1', 2438
+
+    my_key = keystorage.import_keys('key4.pem')
+    key2 = keystorage.import_keys('key2.pem')
+
+    key3 = keystorage.import_keys('key90.pem')
+    key4 = keystorage.import_keys('k2.pem')
+
+    restriction = [(my_key[1], key2[1], key3[1], key4[1])]
+    #restriction = None
+
+    key2 = (None, key2[1])
+    key3 = (None, key3[1])
+    key4 = (None, key4[1])
+
+    addr2 = ('127.0.0.1', 2437)
+    addr3 = ('127.0.0.1', 2436)
+    addr4 = ('127.0.0.1', 2439)
+
+    m = 'teste39826c4b39'
+
+    address_dict = {str(key2[1]): addr2,str(key3[1]): addr3,str(key4[1]): addr4}
+    pub_key_lst = [key2[1],key3[1],key4[1]]
+
+    complete_pub_key_lst = [my_key[1], key2[1], key3[1], key4[1]]
+
+    # R, s = musig_distributed(m, my_key, pub_key_lst, address_dict, hostname, port)
+    # #os.system('clear')
+    # print(f'\nR: {R}\ns: {s}\n')
+    #
+    # pub_key_lst.append(my_key[1])
+    # #adicionar a chave do assinanete a list de chaves publicas
+    # print(musig_ver(R, s, m, pub_key_lst, ec=curve.secp256k1, hash=hs.sha256))
+
+
+    r_point, signature, aggregated_key, proof = musig_distributed_with_key_verification(m, my_key, pub_key_lst,
+                                                                                        address_dict, hostname,
+                                                                                        port, ec=curve.secp256k1,
+                                                                                        hash=hs.sha256,
+                                                                                        complete_pub_keys_list=complete_pub_key_lst,
+                                                                                        restrictions=restriction)
+
+    print(80*'-')
+    print(f'{r_point}')
+    print(f'{signature}')
+    print(f'{aggregated_key}')
+    print(f'{proof}')
+
+    merkle_tree = merkle.build_merkle_tree(complete_pub_key_lst, sorted_keys=False, restrictions=restriction)
+
+    print('$' * 80)
+    print(f'MERKLE TREE:\n{merkle_tree}')
+    print('$' * 80)
+
+    pub_key_lst.append(my_key[1])
+    result = musig_ver_with_key_verification(r_point, signature, m, pub_key_lst, aggregated_key, proof,root = merkle_tree[0],
+                                             complete_pub_key_lst=complete_pub_key_lst,
+                                             restrictions=restriction,
+                                             ec=curve.secp256k1)
+    print(f'RESULT: {result}')
+
+
+def test40():
+    input('FIRE_40>')
+    hostname, port = '127.0.0.1', 2439
+
+    my_key = keystorage.import_keys('k2.pem')
+    key2 = keystorage.import_keys('key2.pem')
+
+    key3 = keystorage.import_keys('key4.pem')
+    key4 = keystorage.import_keys('key90.pem')
+
+    restriction = [(my_key[1], key2[1], key3[1], key4[1])]
+    #restriction = None
+
+    key2 = (None, key2[1])
+    key3 = (None, key3[1])
+    key4 = (None, key4[1])
+
+    addr2 = ('127.0.0.1', 2437)
+    addr3 = ('127.0.0.1', 2438)
+    addr4 = ('127.0.0.1', 2436)
+
+    m = 'teste39826c4b39'
+
+    address_dict = {str(key2[1]): addr2, str(key3[1]): addr3, str(key4[1]): addr4}
+    pub_key_lst = [key2[1],key3[1],key4[1]]
+
+    complete_pub_key_lst = [my_key[1], key2[1], key3[1], key4[1]]
+
+    # R, s = musig_distributed(m, my_key, pub_key_lst, address_dict, hostname, port)
+    # #os.system('clear')
+    # print(f'\nR: {R}\ns: {s}\n')
+    #
+    # pub_key_lst.append(my_key[1])
+    # #adicionar a chave do assinanete a list de chaves publicas
+    # print(musig_ver(R, s, m, pub_key_lst, ec=curve.secp256k1, hash=hs.sha256))
+
+
+    r_point, signature, aggregated_key, proof = musig_distributed_with_key_verification(m, my_key, pub_key_lst,
+                                                                                        address_dict, hostname,
+                                                                                        port, ec=curve.secp256k1,
+                                                                                        hash=hs.sha256,
+                                                                                        complete_pub_keys_list=complete_pub_key_lst,
+                                                                                        restrictions=restriction)
+
+    print(80*'-')
+    print(f'{r_point}')
+    print(f'{signature}')
+    print(f'{aggregated_key}')
+    print(f'{proof}')
+
+    merkle_tree = merkle.build_merkle_tree(complete_pub_key_lst, sorted_keys=False, restrictions=restriction)
+
+    print('$' * 80)
+    print(f'MERKLE TREE:\n{merkle_tree}')
+    print('$' * 80)
+
+    pub_key_lst.append(my_key[1])
+    result = musig_ver_with_key_verification(r_point, signature, m, pub_key_lst, aggregated_key, proof,root = merkle_tree[0],
                                              complete_pub_key_lst=complete_pub_key_lst,
                                              restrictions=restriction,
                                              ec=curve.secp256k1)
@@ -574,6 +718,12 @@ def main():
     elif sys.argv[1] == '20':
         os.system('clear')
         test20()
+    elif sys.argv[1] == '30':
+        os.system('clear')
+        test30()
+    elif sys.argv[1] == '40':
+        os.system('clear')
+        test40()
     else:
         os.system('clear')
         test4()
