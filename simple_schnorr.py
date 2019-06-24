@@ -1,7 +1,8 @@
 import hashlib as hs
 from fastecdsa import curve
 import gmpy2 as gmp
-from os import urandom
+from os import urandom, system
+import keystorage
 
 
 def schnorr_sig(x, X, m, ec=curve.secp256k1, hash = hs.sha256):
@@ -52,3 +53,40 @@ def schnorr_ver(X, m, R, s, ec=curve.secp256k1, hash = hs.sha256):
     else:
         return False
 
+
+def test1():
+    key1 = keystorage.import_keys('k2.pem')
+    m = 'teste39826dasg7d9sbdsadteste343rfsafasdsaddf'
+
+    R, s = schnorr_sig(key1[0], key1[1], m)
+
+    print('_' * 80)
+    print(f'>> Signature verification:')
+    print(schnorr_ver(key1[1], m, R, s))
+    print('_' * 80)
+    print(f'>> Signature verification with wrong message:')
+    print(schnorr_ver(key1[1], m+'1', R, s))
+    print('_' * 80)
+    print(f'>> Signature verification with wrong partial signature:')
+    print(schnorr_ver(key1[1], m, R, s+1))
+    print('_' * 80)
+    print(f'>> Signature verification with wrong R:')
+    wrong_r = R
+    wrong_r.y = wrong_r.y*(-1)
+    print(schnorr_ver(key1[1], m, wrong_r, s))
+    print('_' * 80)
+    print(f'>> Signature verification with wrong public key:')
+    key2 = keystorage.import_keys('key90.pem')
+    print(schnorr_ver(key2[1], m, R, s))
+    print('_' * 80)
+    print('END: TEST 1')
+
+
+
+def main():
+    system('clear')
+    test1()
+
+
+if __name__ == "__main__":
+    main()
