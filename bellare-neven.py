@@ -127,7 +127,8 @@ def bellare_neven_multisig_ver(R, s, m, pub_key_list, ec=curve.secp256k1, hash =
 
 
 def test1():
-    input('>TEST 1 ...')
+    input('> TEST 1 ...')
+    print('> RUNNING...')
     key1 = keystorage.import_keys('k2.pem')
     key2 = keystorage.import_keys('key2.pem')
     key3 = keystorage.import_keys('key4.pem')
