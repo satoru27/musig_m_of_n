@@ -10,7 +10,7 @@ import keystorage
 VISUAL = False
 
 
-def build_tree(leafs, tree):
+def build_tree(leafs, tree, hash_function=hs.sha256):
     """Constrói recursivamente uma árvore binária que utiliza a notação de lista. É providenciado também uma opção
     controlada pela variável global VISUAL que permite que sejam adicionados na árvore apenas uma parcela inicial
     dos valores de hash para que árvore possa ser visualizada no terminal com a função binarytree.build(tree)"""
@@ -28,10 +28,10 @@ def build_tree(leafs, tree):
     next_level = []
     i = 0
     while i < len(leafs):
-        next_level.append(leaf_hash(leafs[i], leafs[i+1]))
+        next_level.append(leaf_hash(leafs[i], leafs[i+1], hash_function=hash_function))
         i += 2
 
-    build_tree(next_level, tree)
+    build_tree(next_level, tree, hash_function=hash_function)
     for leaf in leafs:
         if VISUAL:
             tree.append(int.from_bytes(leaf, byteorder='little') // (10 ** 70))
@@ -40,15 +40,7 @@ def build_tree(leafs, tree):
             tree.append(leaf)
 
 
-# def adjust_leafs(leafs):
-#     number_of_entrys = len(leafs)
-#     while not (log2(number_of_entrys).is_integer()):
-#         # repeat the last entry until the the number of leafs is a power of two
-#         leafs.append(leafs[-1])
-#         number_of_entrys = len(leafs)
-
-
-def calculate_aggregated_keys(leafs):
+def calculate_aggregated_keys(leafs, unique_l, hash_function=hs.sha256):
     """Calcula todas as chaves agregadas possíveis a partir de uma lista contendo todas as chaves públicas a serem
     utilizadas, sem restrições de combinações"""
     # calculate all the possible aggregated keys, including 2-of-n, 3-of-n etc
@@ -70,7 +62,7 @@ def calculate_aggregated_keys(leafs):
             else:
                 # print(f'SUBSET LEN: {subset_len}')
                 # calculate a for the subset
-                subset_a = calculate_a(subset, str(leafs)) # using curve.secp256k1 by default
+                subset_a = calculate_a(subset, unique_l, hash_function=hash_function) # using curve.secp256k1 by default
                 # print(f'SUBSET A: \n{subset_a}')
                 temp = subset_a[0]*subset[0]
                 for j in range(1, subset_len):
@@ -80,7 +72,7 @@ def calculate_aggregated_keys(leafs):
     return out
 
 
-def threaded_hashes(input):
+def threaded_hashes(input, hash_function=hs.sha256):
     """Dada uma lista (input) como entrada, são criadas threads para o cálculo de do hash de cada um dos valores
     presentes na lista. Como a lista é ordenada e deseja-se manter essa mesma ordenação de valores para o hash desses
     valores, é fornecido como entrada da thread um indice que indica a sua posição na lista para que a saída seja
@@ -93,9 +85,8 @@ def threaded_hashes(input):
     thread_list = []
     output = []
     for i in range(input_len):
-        thread = threading.Thread(target=hash, args=(input[i], i, output))
+        thread = threading.Thread(target=thread_hash, args=(input[i], i, output, hash_function))
         thread_list.append(thread)
-        # thread.daemon = Trueec=curve.secp256k1
         thread.start()
 
     for thread in thread_list:
@@ -104,18 +95,18 @@ def threaded_hashes(input):
     return output
 
 
-def hash(input, index, output):
+def thread_hash(input, index, output, hash_function=hs.sha256):
     """Calcula o valor hash de uma entrada e adiciona uma tupla desse hash junto ao indice fornecido na lista de
      saída"""
-    h = hs.sha256()
+    h = hash_function()
     h.update((str(input)).encode())
     h = h.digest()
     output.append((index, h))
 
 
-def leaf_hash(input1, input2):
+def leaf_hash(input1, input2, hash_function=hs.sha256):
     """Calcula o hash de um nó pai utilizando valores de hash dos seus filhos"""
-    h = hs.sha256()
+    h = hash_function()
     h.update(input1)
     h.update(input2)
     return h.digest()
@@ -166,33 +157,18 @@ def clear_hash_list(input):
     return out
 
 
-def calculate_a(subset, complete_public_key_string, ec=curve.secp256k1):
+def calculate_a(subset, unique_l, ec=curve.secp256k1, hash_function=hs.sha256):
     """Calcula o valor de a_i = H_agg(L, X_i)"""
     # PUB KEYS MUST BE SORTED BEFOREHAND
     # IF THE COMPLETE SET IS ORDERED THEN THE SUBSETS ARE ORDERED
     # input =: subset of n public keys
     # output =: [Hagg(<Ln>,X1),Hagg(<Ln>,X2),...,Hagg(<Ln>,Xn)]
 
-    # making the <Ln>
-    # subset_l = ''
-    # for key in subset:
-    #     subset_l = subset_l + '|' + str(key)
-
-    # gambiarra temporaria
-    # str(tuple) != str(subset)
-    # logo, como no musig o str(keys) e uma lista e aqui str(keys) e uma tupla, gera diferença
-    # temp = []
-    # for item in subset:
-    #     temp.append(item)
-    # #subset_l = str(temp)
-    # print(80*'-')
-    # print(f'SUBSET: {temp}')
-
     subset_a = []
     for key in subset:
-        a = hs.sha256()
-        a.update((complete_public_key_string + str(key.x) + str(key.y)).encode())
-        a = a.digest()  # size 48 bytes
+        a = hash_function()
+        a.update((unique_l + str(key)).encode())
+        a = a.digest()
         a = int.from_bytes(a, byteorder='little')
         a = a % ec.q
         subset_a.append(a)
@@ -202,18 +178,33 @@ def calculate_a(subset, complete_public_key_string, ec=curve.secp256k1):
     return subset_a
 
 
-def build_merkle_tree(keys, sorted_keys=False, restrictions=None):
+def calculate_l(pub_keys, hash_function=hs.sha256):
+    """Produz uma codificação única <L> de L={X_1,...,X_n}. Ordenando L com base na ordem lexicográfica e produzindo
+    <L> a partir do hash de L ordenado"""
+    pointsort.sort(pub_keys)
+    l = hash_function()
+    l.update(str(pub_keys).encode())
+    #return int.from_bytes(l.digest(), byteorder='little')
+    return str(l.digest())
+
+
+def build_merkle_tree(keys, complete_public_key_list=None, restrictions=None, hash_function=hs.sha256):
     """Constrói a árvore de Merkle a partir de um conjunto de chaves públicas, considerando possíveis restrições de
     combinações"""
-    if not sorted_keys:
+
+    if complete_public_key_list is None:
+        unique_l = calculate_l(keys, hash_function=hash_function)
+    else:
         pointsort.sort(keys)
+        unique_l = calculate_l(complete_public_key_list, hash_function=hash_function)
 
     if restrictions is None:
-        aggregated_keys = calculate_aggregated_keys(keys)
+        aggregated_keys = calculate_aggregated_keys(keys, unique_l, hash_function=hash_function)
     else:
-        aggregated_keys = calculate_aggregated_keys_with_restrictions(keys, restrictions)
+        aggregated_keys = calculate_aggregated_keys_with_restrictions(keys, restrictions, unique_l,
+                                                                      hash_function=hash_function)
 
-    hash_list = threaded_hashes(aggregated_keys)
+    hash_list = threaded_hashes(aggregated_keys, hash_function=hash_function)
 
     sort_hashes(hash_list)
 
@@ -222,25 +213,25 @@ def build_merkle_tree(keys, sorted_keys=False, restrictions=None):
     adjust_leafs_for_binary_tree(hash_list)
 
     merkle_tree = []
-    build_tree(hash_list, merkle_tree)
+    build_tree(hash_list, merkle_tree, hash_function=hash_function)
 
     return merkle_tree
 
 
-def standard_hash(value):
+def standard_hash(value, hash_function=hs.sha256):
     """Realiza o calculo de hash da entrada e fornece o seu valor em formato de b-string"""
-    h = hs.sha256()
+    h = hash_function()
     h.update((str(value)).encode())
     return h.digest()
 
 
-def produce_proof(key, tree):
+def produce_proof(key, tree, hash_function=hs.sha256):
     """Produz uma prova de que a chave pública agregada (key) pertence a árvore (binária) de Merkle representada em
     formato de lista. É calculado o hash da chave pública agregada, identificado o índice desse hash na lista da
     árvore, esse índice é então fornecido para a função recursiva tree_search, junto a árvore de Merkle e uma lista
     vazia onde serão adicionados os nós que compõem a prova."""
 
-    key_hash = standard_hash(key)
+    key_hash = standard_hash(key, hash_function=hash_function)
 
     print(80 * '-')
     print(f'Key hash = {key_hash}')
@@ -297,10 +288,10 @@ def tree_search(index, tree, output):
     tree_search(parent_index, tree, output)
 
 
-def verify(root, key, proof):
+def verify(root, key, proof, hash_function=hs.sha256):
     """Verifica se a raiz calulada a partir da prova e da chave pública agregada é equivalente a raiz integra da árvore
     de Merkle contruída a partir de combinações permitidas de chaves públicas"""
-    hash_value = standard_hash(key)
+    hash_value = standard_hash(key, hash_function=hash_function)
     proof_len = len(proof)
     i = 0
     print(80 * '-')
@@ -308,7 +299,7 @@ def verify(root, key, proof):
     while i < proof_len:
         print(f'HASH VALUE: {hash_value}\nPROOF {i}: {proof[i]}\nPROOF {i+1}: {proof[i+1]}')
         if hash_value == proof[i] or hash_value == proof[i+1]:
-            hash_value = leaf_hash(proof[i], proof[i + 1])
+            hash_value = leaf_hash(proof[i], proof[i + 1], hash_function)
             i += 2
             print(f'{i-2} OK - {hash_value}')
             print(80 * '-')
@@ -327,6 +318,7 @@ def verify(root, key, proof):
         print(80 * '-')
         print(f'FAIL -> ROOT MISMATCH')
         return False
+
 
 def ispoweroftwo(value):
     """Checa se o valor dado como entrada é uma potência de dois"""
@@ -362,9 +354,6 @@ def adjust_leafs_for_binary_tree(entry_list):
         return False
 
 
-
-# ------------------ TESTING BUILD TREE WITH RESTRICTIONS ---------------------
-
 def sort_restriction(restrictions):
     """Ordena internamente as tuplas de restrições fornecidas para que mantenha-se um padrão de identificação de um
     subset, uma vez que uma vez que (x,y) != (y,x), porém dentro da nossa interpretação não importa a ordem em que os
@@ -389,7 +378,7 @@ def sort_restriction(restrictions):
     return ordered_restrictions
 
 
-def calculate_aggregated_keys_with_restrictions(leafs, restrictions):
+def calculate_aggregated_keys_with_restrictions(leafs, restrictions, unique_l, hash_function=hs.sha256):
     """Calcula todas as chaves agregadas possíveis a partir de uma lista contendo todas as chaves públicas a serem
         utilizadas, considerando as restrições de combinações fornecidas."""
     # calculate all the possible aggregated keys, including 2-of-n, 3-of-n etc
@@ -421,7 +410,7 @@ def calculate_aggregated_keys_with_restrictions(leafs, restrictions):
                 else:
                     # print(f'SUBSET LEN: {subset_len}')
                     # calculate a for the subset
-                    subset_a = calculate_a(subset, str(leafs)) # using curve.secp256k1 by default
+                    subset_a = calculate_a(subset, unique_l, hash_function=hash_function) # using curve.secp256k1 by default
                     # print(f'SUBSET A: \n{subset_a}')
                     temp = subset_a[0]*subset[0]
                     for j in range(1, subset_len):
