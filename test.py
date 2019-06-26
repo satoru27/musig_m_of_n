@@ -486,7 +486,7 @@ def test10(restriction_flag):
     # print(musig_ver(R, s, m, pub_key_lst, ec=curve.secp256k1, hash=hs.sha256))
 
 
-    r_point, signature, aggregated_key, proof, public_key_l = musig_distributed_with_key_verification(m, my_key, pub_key_lst,
+    r_point, signature, aggregated_key, proof = musig_distributed_with_key_verification(m, my_key, pub_key_lst,
                                                                                         address_dict, hostname,
                                                                                         port, ec=curve.secp256k1,
                                                                                         hash=hs.sha256,
@@ -498,7 +498,7 @@ def test10(restriction_flag):
     print(f'{signature}')
     print(f'{aggregated_key}')
     print(f'{proof}')
-    print(f'{public_key_l}')
+
 
     pub_key_lst.append(my_key[1])
     #merkle_tree = merkle.build_merkle_tree(complete_pub_key_lst, sorted_keys=False, restrictions=restriction)
@@ -514,9 +514,8 @@ def test10(restriction_flag):
     #                                          restrictions=restriction,
     #                                          ec=curve.secp256k1)
 
-    result = musig_ver_with_key_verification(r_point, signature, m, proof, aggregated_key=aggregated_key,
-                                             complete_pub_keys_list=complete_pub_key_lst, pub_keys_entry=pub_key_lst,
-                                             public_key_l=public_key_l, restrictions=restriction, root=merkle_tree[0])
+    result = musig_ver_with_key_verification(r_point, signature, m, proof, aggregated_key, merkle_tree[0],
+                                             ec=curve.secp256k1, h_sig=hs.sha256, h_tree=hs.sha256)
 
     print(f'RESULT: {result}')
 
@@ -559,7 +558,7 @@ def test20(restriction_flag):
     # #adicionar a chave do assinanete a list de chaves publicas
     # print(musig_ver(R, s, m, pub_key_lst, ec=curve.secp256k1, hash=hs.sha256))
 
-    r_point, signature, aggregated_key, proof, public_key_l = musig_distributed_with_key_verification(m, my_key,
+    r_point, signature, aggregated_key, proof= musig_distributed_with_key_verification(m, my_key,
                                                                                                       pub_key_lst,
                                                                                                       address_dict,
                                                                                                       hostname,
@@ -588,9 +587,8 @@ def test20(restriction_flag):
     #                                          restrictions=restriction,
     #                                          ec=curve.secp256k1)
 
-    result = musig_ver_with_key_verification(r_point, signature, m, proof, aggregated_key=aggregated_key,
-                                             complete_pub_keys_list=complete_pub_key_lst, pub_keys_entry=pub_key_lst,
-                                             public_key_l=public_key_l, restrictions=restriction, root=merkle_tree[0])
+    result = musig_ver_with_key_verification(r_point, signature, m, proof, aggregated_key, merkle_tree[0],
+                                             ec=curve.secp256k1, h_sig=hs.sha256, h_tree=hs.sha256)
     print(f'RESULT: {result}')
 
 def test30(restriction_flag):
@@ -630,7 +628,7 @@ def test30(restriction_flag):
     # #adicionar a chave do assinanete a list de chaves publicas
     # print(musig_ver(R, s, m, pub_key_lst, ec=curve.secp256k1, hash=hs.sha256))
 
-    r_point, signature, aggregated_key, proof, public_key_l = musig_distributed_with_key_verification(m, my_key,
+    r_point, signature, aggregated_key, proof = musig_distributed_with_key_verification(m, my_key,
                                                                                                       pub_key_lst,
                                                                                                       address_dict,
                                                                                                       hostname,
@@ -654,37 +652,12 @@ def test30(restriction_flag):
     print(f'MERKLE TREE:\n{merkle_tree}')
     print('$' * 80)
 
-    # result = musig_ver_with_key_verification(r_point, signature, m, pub_key_lst, aggregated_key, proof,root = merkle_tree[0],
-    #                                          complete_pub_key_lst=complete_pub_key_lst,
-    #                                          restrictions=restriction,
-    #                                          ec=curve.secp256k1)
     print('_'*80)
-    print(f'VER: all provided')
-    result = musig_ver_with_key_verification(r_point, signature, m, proof, aggregated_key=aggregated_key,
-                                             complete_pub_keys_list=complete_pub_key_lst, pub_keys_entry=pub_key_lst,
-                                             public_key_l=public_key_l, restrictions=restriction, root=merkle_tree[0])
+    print(f'VER:')
+    result = musig_ver_with_key_verification(r_point, signature, m, proof, aggregated_key, merkle_tree[0],
+                                             ec=curve.secp256k1, h_sig=hs.sha256, h_tree=hs.sha256)
     print(result)
 
-    print('_' * 80)
-    print(f'VER: no root')
-    result = musig_ver_with_key_verification(r_point, signature, m, proof, aggregated_key=aggregated_key,
-                                             complete_pub_keys_list=complete_pub_key_lst, pub_keys_entry=pub_key_lst,
-                                             public_key_l=public_key_l, restrictions=restriction, root=None)
-    print(result)
-
-    print('_' * 80)
-    print(f'VER: no agg key') # esse teste nao faz sentido pq uma agg key precisa ser providenciada
-    result = musig_ver_with_key_verification(r_point, signature, m, proof, aggregated_key=None,
-                                             complete_pub_keys_list=complete_pub_key_lst, pub_keys_entry=pub_key_lst,
-                                             public_key_l=None, restrictions=restriction, root=merkle_tree[0])
-    print(result)
-
-    print('_' * 80)
-    print(f'VER: no agg key and no root')
-    result = musig_ver_with_key_verification(r_point, signature, m, proof, aggregated_key=None,
-                                             complete_pub_keys_list=complete_pub_key_lst, pub_keys_entry=pub_key_lst,
-                                             public_key_l=None, restrictions=restriction, root=None)
-    print(f'{result}')
 
 
 def test40(restriction_flag):
@@ -725,7 +698,7 @@ def test40(restriction_flag):
     # #adicionar a chave do assinanete a list de chaves publicas
     # print(musig_ver(R, s, m, pub_key_lst, ec=curve.secp256k1, hash=hs.sha256))
 
-    r_point, signature, aggregated_key, proof, public_key_l = musig_distributed_with_key_verification(m, my_key,
+    r_point, signature, aggregated_key, proof = musig_distributed_with_key_verification(m, my_key,
                                                                                                       pub_key_lst,
                                                                                                       address_dict,
                                                                                                       hostname,
@@ -754,9 +727,8 @@ def test40(restriction_flag):
     #                                          restrictions=restriction,
     #                                          ec=curve.secp256k1)
 
-    result = musig_ver_with_key_verification(r_point, signature, m, proof, aggregated_key=aggregated_key,
-                                             complete_pub_keys_list=complete_pub_key_lst, pub_keys_entry=pub_key_lst,
-                                             public_key_l=public_key_l, restrictions=restriction, root=merkle_tree[0])
+    result = musig_ver_with_key_verification(r_point, signature, m, proof, aggregated_key, merkle_tree[0],
+                                             ec=curve.secp256k1, h_sig=hs.sha256, h_tree=hs.sha256)
     print(f'RESULT: {result}')
 
 

@@ -275,13 +275,10 @@ def musig_distributed_with_key_verification(m, user_key, pub_keys_entry, address
     print('$' * 80)
     proof = merkle.produce_proof(aggregated_key, merkle_tree, hash_function=hash)
 
-    return r_point, partial_signature, aggregated_key, proof, public_key_l
+    return r_point, partial_signature, aggregated_key, proof
 
 
-def musig_ver(r_point, s, m, aggregated_key=None, complete_pub_keys_list=None, ec=curve.secp256k1, h_agg=hs.sha256,
-              h_sig=hs.sha256, pub_keys_entry=None, public_key_l=None):
-    """TODO: COLOCAR A CHAVE AGG COMO PARAMETRO OBRIGATORIO, NAO FAZ SENTIDO A VERIFICAÇÃO PELA ARV DE MERKLE SEM ELA.
-        DESSA FORMA, A VERIFICAÇÃO SEMPRE SERA FEITA A PARTIR DA CHAVE AGG"""
+def musig_ver(r_point, s, m, aggregated_key, ec=curve.secp256k1, h_sig=hs.sha256):
     # R: elliptic curve point
     # s: int/mpz
     # m: string
@@ -290,37 +287,9 @@ def musig_ver(r_point, s, m, aggregated_key=None, complete_pub_keys_list=None, e
     # ec: elliptic curve
     # hash: hash function
 
-    if aggregated_key is None:
-
-        if pub_keys_entry is None:
-            print("[V] No aggregated key or public key list provided")
-            return False
-
-        else:
-            pub_keys = pub_keys_entry.copy()
-
-            # sort L and calculate <L>
-            if complete_pub_keys_list is None:
-                public_key_l = calculate_l(pub_keys)
-            else:
-                pointsort.sort(pub_keys)
-                public_key_l = calculate_l(complete_pub_keys_list)
-
-            print(f"[V] sorted public keys: {pub_keys}")
-            print('_' * 80)
-            print(f'[V] <L> = {public_key_l}')
-
-            # calculating ai = Hagg(L,Xi)
-            a_dict = calculate_a_i(pub_keys, public_key_l, ec=ec, hash_function=h_agg)
-            print(f'\nA DICT: {a_dict}\n')
-
-            # calculating the aggregated key
-            aggregated_key = calculate_aggregated_key(pub_keys, a_dict)
-            print(f'\nAGGREGATED KEY: {aggregated_key}\n')
-    else:
-        if public_key_l is None:
-            print("[V] Aggregated key provided but <L> wasn't provided")
-            return False
+    if (r_point is None) or (s is None) or (m is None) or (aggregated_key is None):
+        print('[V] Missing parameters')
+        return False
 
     # computing the challenge c = Hsig(X', R, m)
     c = calculate_c(aggregated_key, r_point, m, ec=ec, hash_function=h_sig)
@@ -338,37 +307,20 @@ def musig_ver(r_point, s, m, aggregated_key=None, complete_pub_keys_list=None, e
         return False
 
 
-def aggregated_key_verification(aggregated_key, proof, complete_pub_keys_list=None, hash_function=hs.sha256,
-                                pub_keys_entry=None, restrictions=None, root=None):
-    key_ok = False
+def aggregated_key_verification(aggregated_key, proof, root, hash_function=hs.sha256):
 
-    if root is None:
-        if complete_pub_keys_list is None:
-            if pub_keys_entry is None:
-                print('[V] ERROR: no key input provided for the merkle tree construction')
-                return False
-
-        merkle_tree = merkle.build_merkle_tree(pub_keys_entry, complete_public_key_list=complete_pub_keys_list,
-                                               restrictions=restrictions, hash_function=hash_function)
-
-        key_ok = merkle.verify(merkle_tree[0], aggregated_key, proof, hash_function=hash_function)
-
-    else:
-
-        key_ok = merkle.verify(root, aggregated_key, proof, hash_function=hash_function)
-
-    if key_ok:
-        return True
-    else:
+    if (root is None) or (aggregated_key is None) or (proof is None):
+        print('[V] ERROR: missing parameters')
         return False
 
+    else:
 
-def musig_ver_with_key_verification(r_point, s, m, proof, aggregated_key=None, complete_pub_keys_list=None,
-                                    ec=curve.secp256k1, h_agg=hs.sha256, h_sig=hs.sha256, h_tree=hs.sha256,
-                                    pub_keys_entry=None, public_key_l=None, restrictions=None, root=None):
+        return merkle.verify(root, aggregated_key, proof, hash_function=hash_function)
 
-    """TODO: COLOCAR A CHAVE AGG COMO PARAMETRO OBRIGATORIO, NAO FAZ SENTIDO A VERIFICAÇÃO PELA ARV DE MERKLE SEM ELA.
-    DESSA FORMA, A VERIFICAÇÃO SEMPRE SERA FEITA A PARTIR DA CHAVE AGG"""
+
+def musig_ver_with_key_verification(r_point, s, m, proof, aggregated_key, root, ec=curve.secp256k1, h_sig=hs.sha256,
+                                    h_tree=hs.sha256):
+
     # R: elliptic curve point
     # s: int/mpz
     # m: string
@@ -376,13 +328,10 @@ def musig_ver_with_key_verification(r_point, s, m, proof, aggregated_key=None, c
     # pub_keys: [pub_key_1,...,pub_key_k]
     # ec: elliptic curve
 
-    agg_key_ok = aggregated_key_verification(aggregated_key, proof, complete_pub_keys_list=complete_pub_keys_list,
-                                             hash_function=h_tree, pub_keys_entry=pub_keys_entry,
-                                             restrictions=restrictions, root=root)
+    agg_key_ok = aggregated_key_verification(aggregated_key, proof, root, hash_function=h_tree)
 
     if agg_key_ok:
-        return musig_ver(r_point, s, m, aggregated_key=aggregated_key, complete_pub_keys_list=complete_pub_keys_list,
-                         ec=ec, h_agg=h_agg, h_sig=h_sig, pub_keys_entry=pub_keys_entry, public_key_l=public_key_l)
+        return musig_ver(r_point, s, m, aggregated_key, ec=ec, h_sig=h_sig,)
     else:
         print("[V] Aggregated key is invalid")
         return False
