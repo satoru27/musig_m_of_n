@@ -501,7 +501,7 @@ def test10(restriction_flag):
 
     pub_key_lst.append(my_key[1])
     #merkle_tree = merkle.build_merkle_tree(complete_pub_key_lst, sorted_keys=False, restrictions=restriction)
-    merkle_tree = merkle.build_merkle_tree(pub_key_lst, complete_public_key_list=complete_pub_key_lst,restrictions=restriction)
+    merkle_tree = merkle.build_merkle_tree(complete_pub_key_lst, restrictions=restriction)
 
     print('$' * 80)
     print(f'MERKLE TREE:\n{merkle_tree}')
@@ -574,7 +574,7 @@ def test20(restriction_flag):
 
     pub_key_lst.append(my_key[1])
     # merkle_tree = merkle.build_merkle_tree(complete_pub_key_lst, sorted_keys=False, restrictions=restriction)
-    merkle_tree = merkle.build_merkle_tree(pub_key_lst, complete_public_key_list=complete_pub_key_lst,restrictions=restriction)
+    merkle_tree = merkle.build_merkle_tree(complete_pub_key_lst,restrictions=restriction)
 
     print('$' * 80)
     print(f'MERKLE TREE:\n{merkle_tree}')
@@ -643,7 +643,7 @@ def test30(restriction_flag):
 
     pub_key_lst.append(my_key[1])
     # merkle_tree = merkle.build_merkle_tree(complete_pub_key_lst, sorted_keys=False, restrictions=restriction)
-    merkle_tree = merkle.build_merkle_tree(pub_key_lst, complete_public_key_list=complete_pub_key_lst,restrictions=restriction)
+    merkle_tree = merkle.build_merkle_tree(complete_pub_key_lst,restrictions=restriction)
 
     print('$' * 80)
     print(f'MERKLE TREE:\n{merkle_tree}')
@@ -712,7 +712,7 @@ def test40(restriction_flag):
 
     pub_key_lst.append(my_key[1])
     # merkle_tree = merkle.build_merkle_tree(complete_pub_key_lst, sorted_keys=False, restrictions=restriction)
-    merkle_tree = merkle.build_merkle_tree(pub_key_lst, complete_public_key_list=complete_pub_key_lst,restrictions=restriction)
+    merkle_tree = merkle.build_merkle_tree(complete_pub_key_lst,restrictions=restriction)
 
     print('$' * 80)
     print(f'MERKLE TREE:\n{merkle_tree}')

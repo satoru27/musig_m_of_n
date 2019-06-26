@@ -411,13 +411,18 @@ def musig_distributed_with_key_verification(m, user_key, pub_keys_entry, address
 
     print(80 * '-')
     print(f'RESTRICTIONS: {restrictions}')
+
+    if complete_pub_keys_list is None:
+        complete_pub_keys_list = pub_keys.copy()
+
     print(f'COMPLETE PUB KEYS LIST:\n{complete_pub_keys_list}')
-    #merkle_tree = merkle.build_merkle_tree(complete_pub_keys_list, sorted_keys=True, restrictions=restrictions)
-    merkle_tree = merkle.build_merkle_tree(pub_keys, complete_public_key_list=complete_pub_keys_list,
-                                           restrictions=restrictions, hash_function=h_tree)
+
+    merkle_tree = merkle.build_merkle_tree(complete_pub_keys_list, restrictions=restrictions, hash_function=h_tree)
+
     print('$'*80)
     print(f'MERKLE TREE:\n{merkle_tree}')
     print('$' * 80)
+
     proof = merkle.produce_proof(aggregated_key, merkle_tree, hash_function=h_tree)
 
     return r_point, partial_signature, aggregated_key, proof
@@ -474,7 +479,11 @@ def aggregated_key_verification(aggregated_key, proof, root, hash_function=hs.sh
 
     else:
 
-        return merkle.verify(root, aggregated_key, proof, hash_function=hash_function)
+        if merkle.verify(root, aggregated_key, proof):
+            return merkle.verify(root, aggregated_key, proof, hash_function=hash_function)
+        else:
+            print('[V] KEY_FAIL: aggregated key is invalid')
+            return False
 
 
 def musig_ver_with_key_verification(r_point, s, m, proof, aggregated_key, root, ec=curve.secp256k1, h_sig=hs.sha256,

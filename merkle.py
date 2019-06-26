@@ -188,20 +188,16 @@ def calculate_l(pub_keys, hash_function=hs.sha256):
     return str(l.digest())
 
 
-def build_merkle_tree(keys, complete_public_key_list=None, restrictions=None, hash_function=hs.sha256):
+def build_merkle_tree(complete_public_key_list, restrictions=None, hash_function=hs.sha256):
     """Constrói a árvore de Merkle a partir de um conjunto de chaves públicas, considerando possíveis restrições de
     combinações"""
 
-    if complete_public_key_list is None:
-        unique_l = calculate_l(keys, hash_function=hash_function)
-    else:
-        pointsort.sort(keys)
-        unique_l = calculate_l(complete_public_key_list, hash_function=hash_function)
+    unique_l = calculate_l(complete_public_key_list, hash_function=hash_function)
 
     if restrictions is None:
-        aggregated_keys = calculate_aggregated_keys(keys, unique_l, hash_function=hash_function)
+        aggregated_keys = calculate_aggregated_keys(complete_public_key_list, unique_l, hash_function=hash_function)
     else:
-        aggregated_keys = calculate_aggregated_keys_with_restrictions(keys, restrictions, unique_l,
+        aggregated_keys = calculate_aggregated_keys_with_restrictions(complete_public_key_list, restrictions, unique_l,
                                                                       hash_function=hash_function)
 
     hash_list = threaded_hashes(aggregated_keys, hash_function=hash_function)
