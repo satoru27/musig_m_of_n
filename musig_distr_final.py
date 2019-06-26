@@ -13,9 +13,14 @@ CURVES = {"secp256k1": curve.secp256k1, "secp224k1": curve.secp224k1, "brainpool
               "brainpoolP384r1": curve.brainpoolP384r1, "brainpoolP512r1": curve.brainpoolP512r1}
 
 
-def calculate_l(pub_keys, hash = hs.sha256):
-    """Produz uma codificação única <L> de L={X_1,...,X_n}. Ordenando L com base na ordem lexicográfica e produzindo
-    <L> a partir do hash de L ordenado"""
+def calculate_l(pub_keys, hash=hs.sha256):
+    """
+    Produz uma codificação única <L> de L={X_1,...,X_n}. Ordenando L com base na ordem lexicográfica e produzindo
+    <L> a partir do hash de L ordenado
+    :param pub_keys: lista de chaves públicas dos signatários na forma [X_1,X_2,...,X_n]
+    :param func hash: função de hash
+    :return: string do hash de L ordenado lexicograficamente
+    """
     pointsort.sort(pub_keys)
     l = hash()
     l.update(str(pub_keys).encode())
@@ -23,6 +28,16 @@ def calculate_l(pub_keys, hash = hs.sha256):
 
 
 def calculate_a_i(pub_keys, unique_l, ec=curve.secp256k1, hash_function=hs.sha256):
+    """
+    Calcula a_i = H_agg(<L>,X_i) para cada X_i fornecido como entrada e retorna uma lista de a_i's com ordem relativa
+    a ordem da lista de chaves públicas.
+
+    :param list pub_keys: lista de chaves públicas dos signatários na forma [X_1,X_2,...,X_n]
+    :param str unique_l: codificação única <L> do multiset L de todas as chaves públicas envolvidas na assinatura
+    :param Curve ec: curva elíptica
+    :param func hash_function: função de hash H_agg
+    :return: lista de a_i's com ordenação relativa a pub_keys
+    """
     temp = {}
     for key in pub_keys:
         a = hash_function()
@@ -35,6 +50,14 @@ def calculate_a_i(pub_keys, unique_l, ec=curve.secp256k1, hash_function=hs.sha25
 
 
 def calculate_aggregated_key(pub_keys, a_dict):
+    """
+    Calcula a chave pública agregada relativa às chaves públicas fornecidas como parâmetro.
+
+    :param list pub_keys: lista de chaves públicas dos signatários na forma [X_1,X_2,...,X_n]
+    :param dict a_dict: dicionário na forma {"X_1":a_1,...,"X_n":a_n}, com a_i = H_agg(<L>,X_i)
+    :return: chave agregada X
+    :rtype: Point
+    """
     aggregated_key = a_dict[str(pub_keys[0])]*pub_keys[0]
     for key in pub_keys[1:]:
         aggregated_key += a_dict[str(key)]*key
@@ -42,7 +65,14 @@ def calculate_aggregated_key(pub_keys, a_dict):
 
 
 def calculate_r(ec=curve.secp256k1):
-    """Obtem um r aleatório dentro da ordem da curva"""
+    """
+    Obtém um r aleatório dentro da ordem da curva
+
+    :param Curve ec: curva elíptica
+    :return: inteiro aleátório 1 =< r =< p-1, sendo p a ordem da curva
+    :rtype: int
+    """
+    """"""
     r = 0
     while r == 0:
         r = gmp.mpz_random(gmp.random_state(int.from_bytes(urandom(4), byteorder='little')), ec.q)
@@ -51,11 +81,27 @@ def calculate_r(ec=curve.secp256k1):
 
 
 def calculate_r_point(r, ec=curve.secp256k1):
-    """Calcula R_i = r_i*P, sendo P o ponto base da curva ec"""
+    """
+    Calcula R_1 = r_1'*P, sendo P o ponto base da curva ec
+
+    :param int r: inteiro obtido de forma aleatória dentro da ordem da curva
+    :param Curve ec: curva elíptica
+    :return: ponto R
+    :rtype: Point
+    """
+    """"""
     return r * ec.G
 
 
 def calculate_t_commit(r_point, hash_function=hs.sha256):
+    """
+    Calcula t_1 = H_com(R_1)
+
+    :param Point r_point: ponto R
+    :param function hash_function: função de hash H_com
+    :return: hash resultante em hexadecimal
+    :rtype: str
+    """
     """Calcula t_i = H_com(R_i)"""
     t = hash_function()
     t.update((str(r_point)).encode())
@@ -63,10 +109,27 @@ def calculate_t_commit(r_point, hash_function=hs.sha256):
 
 
 def prepare_package(user_pub_key, package):
+    """
+    Formata um pacote a ser enviado pela rede durante o protolo de assinatura
+
+    :param Point user_pub_key: chave pública do signatário
+    :param var package: compromisso t_i, ponto R_i ou assinatura parcial s_i
+    :type var: int ou Point
+    :return: str(pub_key)||SEPARATOR||str(package)
+    :rtype: str
+    """
     return str(user_pub_key) + SEPARATOR + str(package)
 
 
 def point_from_str(input):
+    """
+    Cria um objeto ponto (de uma curva elíptica) a partir de uma string (formatada especficamente) que descreve um
+     ponto de uma curva elíptica.
+     É utilizado regex para a separação de parâmetros na string.
+
+    :param input: string na forma "X: 'valor da coordenada x em hexadecimal'\nY: 'valor da coordenada x em hexadecimal'\n(On curve <'nome da curva'>)"
+    :return: ponto da curva elíptica point.Point(x,y,curve)
+    """
     x_value = re.search('X:(.*)\\nY:', input).group(1).strip(' ')
     y_value = re.search('Y:(.*)\\n\\(', input).group(1).strip(' ')
     curve_name = re.search('<(.*)>', input).group(1).strip(' ')
@@ -78,6 +141,14 @@ def point_from_str(input):
     return point.Point(int(x_value, 0), int(y_value, 0), CURVES[curve_name])
 
 def validate(commit_rcv, r_point_rcv, hash_function = hs.sha256):
+    """
+    Verifica se t_i == H_com(R_i)
+
+    :param commit_rcv: string na forma "pub_key_i|t_i"
+    :param r_point_rcv: string na forma "pub_key_i'|R_i"
+    :param hash_function: função de hash H_com
+    :return: True se pub_key_i'==pub_key_i e t_i == H_com(R_i), False caso contrário.
+    """
     # pub_key = re.search('(.*)\\|', input).group(1).strip(' ')
     # commit = re.search('\\|(.*)', input).group(1).strip(' ')
     # print(pub_key)
@@ -97,6 +168,16 @@ def validate(commit_rcv, r_point_rcv, hash_function = hs.sha256):
 
 
 def check_commits(commit_list, r_point_list, hash_function=hs.sha256):
+    """
+    Verifica se os compromissos t_i dos co-signatários equivalem a t_i' = H_com(R_i), sendo R_i o respectivo
+    ponto enviado pelo co-signatário. As listas dos compromissos t_i e de pontos R_i contém uma identificação da chave
+    pública X_i do seu respectivo signatário.
+
+    :param commit_list: lista com strings ["pub_key_1|t_1","pub_key_2|t_2", ... ,"pub_key_n|t_n"]
+    :param r_point_list: lista com strings ["pub_key_1|R_1","pub_key_2|R_2", ... ,"pub_key_n|R_n"]
+    :param hash_function: função de hash H_com
+    :return: True se cada t_i'==t_i, False caso algum t_i' != t_i
+    """
     i = 0
     for commit, r_point in zip(commit_list, r_point_list):
         result = validate(commit, r_point, hash_function)
@@ -109,6 +190,13 @@ def check_commits(commit_list, r_point_list, hash_function=hs.sha256):
 
 
 def r_point_list_to_dict(r_point_list):
+    """
+    Converte uma lista contendo todos os R_i de cada signatário e suas respectivas chaves públicas em um dicionário
+    contendo a string de uma chave pública como chave e seu respectivo R_i como valor.
+
+    :param r_point_list: lista com strings ["pub_key_1|R_1","pub_key_2|R_2", ... ,"pub_key_n|R_n"]
+    :return: dicionário {"pub_key_1":R_1,"pub_key_2"|R_2, ... ,"pub_key_n":R_n}
+    """
     temp = {}
     for item in r_point_list:
         pub_key, r_point = item.split(SEPARATOR)
@@ -119,6 +207,13 @@ def r_point_list_to_dict(r_point_list):
 
 
 def calculate_r_point_sum(r_point_dict, pub_keys):
+    """
+    Calcula a soma R dos pontos R_i de cada signatário tal que R =\sum_{i=1}^{n} R_i
+
+    :param dict r_point_dict: dicionário dos pontos R_i na forma {"pub_key_1":R_1,"pub_key_2"|R_2, ... ,"pub_key_n":R_n}
+    :param list pub_keys: lista de chaves públicas dos signatários na forma [X_1,X_2,...,X_n]
+    :return: R = \sum_{i=1}^{n} R_i
+    """
     # calculating the sum of the r points
     r_point = r_point_dict[str(pub_keys[0])]
     for key in pub_keys[1:]:
@@ -127,10 +222,27 @@ def calculate_r_point_sum(r_point_dict, pub_keys):
 
 
 def calculate_s_i(r, c, a, priv_key, ec=curve.secp256k1):
+    """
+    Calcula s_1 = r_1 + c * a_1 * x_1
+
+    :param int r: inteiro r do signatário
+    :param int c: c = H_sig(X_agg, R, m), sendo X_agg a chave pública agregada, R a soma dos R_i dos signatário e m a mensagem
+    :param int a: a_1 = H_agg(<L>,X_1), sendo X_1 a chave pública do signatário
+    :param int priv_key: chave privada do signatário
+    :param Curve ec: curva elíptica
+    :return: assinatura parcial s_1 do signatario
+    """
     return (gmp.mpz(r) + gmp.mpz(c) * gmp.mpz(a) * gmp.mpz(priv_key)) % ec.q
 
 
 def s_list_to_dict(s_list):
+    """
+    Converte uma lista contendo todos os s_i de cada signatário e suas respectivas chaves públicas em um dicionário
+    contendo a string de uma chave pública como chave e seu respectivo s_i como valor.
+
+    :param s_list: lista com strings ["pub_key_1|s_1","pub_key_2|s_2", ... ,"pub_key_n|s_n"]
+    :return: dicionário {"pub_key_1":s_1,"pub_key_2"|s_2, ... ,"pub_key_n":s_n}
+    """
     temp = {}
     for item in s_list:
         pub_key, sig = item.split(SEPARATOR)
@@ -139,6 +251,14 @@ def s_list_to_dict(s_list):
 
 
 def calculate_s(pub_keys, s_dict, ec=curve.secp256k1):
+    """
+    Calcula a assinatura parcial do grupo s = \sum_{i=1}^n s_i
+
+    :param list pub_keys: lista de chaves públicas dos signatários na forma [X_1,X_2,...,X_n]
+    :param dict s_dict: dicionário das assinaturas parciais dos signatários na forma {"pub_key_1":s_1,"pub_key_2"|s_2, ... ,"pub_key_n":s_n}
+    :param Curve ec: curva elíptica
+    :return: assinatura parcial s do grupo
+    """
     s = gmp.mpz(0)
     for key in pub_keys:
         s += s_dict[str(key)]
@@ -146,6 +266,16 @@ def calculate_s(pub_keys, s_dict, ec=curve.secp256k1):
 
 
 def calculate_c(aggregated_key, r_point, m, ec=curve.secp256k1, hash_function=hs.sha256):
+    """
+    Calcula o desafio c = H_sig(X, R, m)
+
+    :param Point aggregated_key: chave pública agregada X = \sum_{i=1}^n a_i X_i
+    :param Point r_point: ponto R = \sum_{i=1}^n R_i
+    :param str m: mensagem a ser assinada
+    :param Curve ec: curva elíptica
+    :param func hash_function: função de hash H_sig
+    :return: inteiro c = H_sig(X, R, m)
+    """
     c = hash_function()
     c.update((str(aggregated_key) + str(r_point) + m).encode())
     c = c.digest()
@@ -154,20 +284,35 @@ def calculate_c(aggregated_key, r_point, m, ec=curve.secp256k1, hash_function=hs
 
 
 def musig_distributed_with_key_verification(m, user_key, pub_keys_entry, address_dict, hostname, port,
-                                            ec=curve.secp256k1, hash = hs.sha256, h_com=hs.sha256, h_agg=hs.sha256,
-                                            h_sig=hs.sha256, h_tree=hs.sha256,
-                                            complete_pub_keys_list=None, restrictions=None):
-    # m: string
-    # priv key: int/mpz
-    # pub key: elliptic curve point
-    # user_key: (priv key, pub key)
-    # pub_keys_entry: [pub key1, pub_key2,...]
-    # address_dict = {str(pubkey):(ip,port), ...}
-    # hostname: string
-    # port: int
-    # ec: elliptic curve
-    # hash: hash function
+                                            ec=curve.secp256k1, h_com=hs.sha256, h_agg=hs.sha256, h_sig=hs.sha256,
+                                            h_tree=hs.sha256, complete_pub_keys_list=None, restrictions=None):
+    """
+    Implementação do esquema de multi-assinatura MuSig no cenário n-de-m (n signatários de um conjunto de m signatários).
+    O signatário deve fornecer uma mensagem m a ser assinada, seu par de chaves privada/pública, as chaves públicas
+    de seus co-signatários, o endereço (ip, porta) de cada um de seus co-signatários, o hostname, a curva elíptica
+    a ser utilizada, quatro funções de hash, uma para a fase de comprometimento, outra para calcular a chave agregada,
+    uma para calcular a assinatura e outra a ser utilizada na árvore de Merkle. Opcionalmente, caso a chave agregada
+    não utilize todas as chaves públicas de L = {X_1,...,X_n}, ele deverá ser fornecido. Caso haja restrições de
+    combinações de chaves de L, elas deverão ser fornecidas para a produção de uma árvore de Merkle apropriada.
 
+    O protocolo de assinatura retorna a assinatura (R,s), a chave agregada utilizada na assinatura e uma prova de
+    pertencimento desta chave a árvore de Merkle produzida a partir de L e das restrições.
+
+    :param str m: mensagem a ser assinada
+    :param tuple user_key: tupla contendo o par de chaves do signatário na forma (chave_privada, chave_pública)
+    :param list pub_keys_entry: lista contendo todas as chaves públicas dos co-signatários participantes do protocolo
+    :param dict address_dict: lista contendo todos os endereços dos co-signatários na forma
+    :param string hostname: hostname/ip do signatário
+    :param int port: porta do signatário
+    :param Curve ec: curva elíptica
+    :param func h_com: função de hash H_com utilizada na fase de comprometimento
+    :param func h_agg: função de hash H_agg utilizada no calculo da chave agregada
+    :param func h_sig: função de hash H_sig utilizada na assinatura
+    :param func h_tree: função de hash H_tree utilizada na construção da árvore de Merkle
+    :param list complete_pub_keys_list: lista contendo todas as chaves públicas de todos os membros do grupo
+    :param list restrictions: lista de tuplas de chaves públicas contendo as restrições de combinações de chaves. Por exemplo, não devem ser combinadas as chaves X_1, X_2 e X_3 entre si e as chaves X_4 e X_5 entre si, logo restrictions = [(X_1,X_2,X_3),(X_4,X_5)]
+    :return: assinatura (R,s), chave pública agregada X e prova P
+    """
     public_key_l = None
 
     # pub_keys will be the list with all public keys in the signing process
@@ -229,7 +374,7 @@ def musig_distributed_with_key_verification(m, user_key, pub_keys_entry, address
     print(f'\nR POINT LIST: {r_point_list}\n')
 
     # check the R points with the commits
-    ok = check_commits(commit_list, r_point_list, hash_function=hs.sha256)
+    ok = check_commits(commit_list, r_point_list, hash_function=h_com)
     print(f'OK = {ok}')
 
     # if the commit doesn't match with the R, exit
@@ -273,19 +418,22 @@ def musig_distributed_with_key_verification(m, user_key, pub_keys_entry, address
     print('$'*80)
     print(f'MERKLE TREE:\n{merkle_tree}')
     print('$' * 80)
-    proof = merkle.produce_proof(aggregated_key, merkle_tree, hash_function=hash)
+    proof = merkle.produce_proof(aggregated_key, merkle_tree, hash_function=h_tree)
 
     return r_point, partial_signature, aggregated_key, proof
 
 
 def musig_ver(r_point, s, m, aggregated_key, ec=curve.secp256k1, h_sig=hs.sha256):
-    # R: elliptic curve point
-    # s: int/mpz
-    # m: string
-    # pub_key: elliptic curve point
-    # pub_keys_entry: [pub_key_1,...,pub_key_k]
-    # ec: elliptic curve
-    # hash: hash function
+    """
+    Verifica se uma assinatura (R,s) é válida para uma mensagem m e uma chave agregada, baseado no esquema MuSig.
+    :param Point r_point: ponto R
+    :param int s: assinatura parcial s
+    :param str m: mensagem a ser assinada
+    :param Point aggregated_key: chave pública agregada
+    :param Curve ec: curva elíptica
+    :param func h_sig: função de hash H_sig utilizada na assinatura
+    :return: True se (R,s) é válida para m e a chave agregada, caso contrário, False
+    """
 
     if (r_point is None) or (s is None) or (m is None) or (aggregated_key is None):
         print('[V] Missing parameters')
@@ -308,6 +456,17 @@ def musig_ver(r_point, s, m, aggregated_key, ec=curve.secp256k1, h_sig=hs.sha256
 
 
 def aggregated_key_verification(aggregated_key, proof, root, hash_function=hs.sha256):
+    """
+    Verifica se a chave agregada é uma combinação válida do conjunto de chaves públicas utilizado na assinatura, por
+    meio da prova apresentada junto a chave agregada e uma raiz íntegra da árvore de Merkle construída a partir das
+    combinações válidas das chaves públicas.
+
+    :param Point aggregated_key: chave pública agregada
+    :param list proof: prova de que a chave pública agregada é uma combinação válida de chaves públicas dos signatários
+    :param bytes root: raiz íntegra da árvore de hash de todas as combinações válidas de chaves públicas dos signatários
+    :param func hash_function: função de hash H_tree utilizada na construção da árvore de Merkle
+    :return: True se a chave agregada é válida, caso contrário, False
+    """
 
     if (root is None) or (aggregated_key is None) or (proof is None):
         print('[V] ERROR: missing parameters')
@@ -320,13 +479,21 @@ def aggregated_key_verification(aggregated_key, proof, root, hash_function=hs.sh
 
 def musig_ver_with_key_verification(r_point, s, m, proof, aggregated_key, root, ec=curve.secp256k1, h_sig=hs.sha256,
                                     h_tree=hs.sha256):
+    """
+    Executa a verificação da chave pública agregada, e, caso ela seja uma combinação válida de chaves públicas, verifica
+    a assinatura em questão, retornando o resultado das verificações.
 
-    # R: elliptic curve point
-    # s: int/mpz
-    # m: string
-    # pub_key: elliptic curve point
-    # pub_keys: [pub_key_1,...,pub_key_k]
-    # ec: elliptic curve
+    :param Point r_point: ponto R
+    :param int s: assinatura parcial s
+    :param str m: mensagem a ser assinada
+    :param list proof: prova de que a chave pública agregada é uma combinação válida de chaves públicas dos signatários
+    :param Point aggregated_key: chave pública agregada
+    :param bytes root: raiz íntegra da árvore de hash de todas as combinações válidas de chaves públicas dos signatários
+    :param Curve ec: curva elíptica
+    :param func h_sig: função de hash H_sig utilizada na assinatura
+    :param func h_tree: função de hash H_tree utilizada na construção da árvore de Merkle
+    :return: True se a chave agregada é válida e se a assinatura (R,s) é válida para os parametros fornecidos, caso contrário, False.
+    """
 
     agg_key_ok = aggregated_key_verification(aggregated_key, proof, root, hash_function=h_tree)
 

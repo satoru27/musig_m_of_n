@@ -489,7 +489,6 @@ def test10(restriction_flag):
     r_point, signature, aggregated_key, proof = musig_distributed_with_key_verification(m, my_key, pub_key_lst,
                                                                                         address_dict, hostname,
                                                                                         port, ec=curve.secp256k1,
-                                                                                        hash=hs.sha256,
                                                                                         complete_pub_keys_list=complete_pub_key_lst,
                                                                                         restrictions=restriction)
 
@@ -564,7 +563,6 @@ def test20(restriction_flag):
                                                                                                       hostname,
                                                                                                       port,
                                                                                                       ec=curve.secp256k1,
-                                                                                                      hash=hs.sha256,
                                                                                                       complete_pub_keys_list=complete_pub_key_lst,
                                                                                                       restrictions=restriction)
 
@@ -634,7 +632,6 @@ def test30(restriction_flag):
                                                                                                       hostname,
                                                                                                       port,
                                                                                                       ec=curve.secp256k1,
-                                                                                                      hash=hs.sha256,
                                                                                                       complete_pub_keys_list=complete_pub_key_lst,
                                                                                                       restrictions=restriction)
 
@@ -704,7 +701,6 @@ def test40(restriction_flag):
                                                                                                       hostname,
                                                                                                       port,
                                                                                                       ec=curve.secp256k1,
-                                                                                                      hash=hs.sha256,
                                                                                                       complete_pub_keys_list=complete_pub_key_lst,
                                                                                                       restrictions=restriction)
 
