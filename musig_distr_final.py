@@ -24,7 +24,7 @@ def calculate_l(pub_keys, hash=hs.sha256):
     pointsort.sort(pub_keys)
     l = hash()
     l.update(str(pub_keys).encode())
-    return str(l.digest())
+    return str(l.hexdigest())
 
 
 def calculate_a_i(pub_keys, unique_l, ec=curve.secp256k1, hash_function=hs.sha256):
@@ -42,8 +42,9 @@ def calculate_a_i(pub_keys, unique_l, ec=curve.secp256k1, hash_function=hs.sha25
     for key in pub_keys:
         a = hash_function()
         a.update((unique_l + str(key)).encode())
-        a = a.digest()
-        a = int.from_bytes(a, byteorder='little')
+        a = a.hexdigest()
+        #a = int.from_bytes(a, byteorder='little')
+        a = int(a, 16)
         a = a % ec.q
         temp[str(key)] = a
     return temp
@@ -127,7 +128,7 @@ def point_from_str(input):
      ponto de uma curva elíptica.
      É utilizado regex para a separação de parâmetros na string.
 
-    :param input: string na forma "X: 'valor da coordenada x em hexadecimal'\nY: 'valor da coordenada x em hexadecimal'\n(On curve <'nome da curva'>)"
+    :param input: string na forma "X: 'valor da coordenada x em hexadecimal'\nY: 'valor da coordenada y em hexadecimal'\n(On curve <'nome da curva'>)"
     :return: ponto da curva elíptica point.Point(x,y,curve)
     """
     x_value = re.search('X:(.*)\\nY:', input).group(1).strip(' ')
@@ -278,8 +279,9 @@ def calculate_c(aggregated_key, r_point, m, ec=curve.secp256k1, hash_function=hs
     """
     c = hash_function()
     c.update((str(aggregated_key) + str(r_point) + m).encode())
-    c = c.digest()
-    c = int.from_bytes(c, byteorder='little')
+    c = c.hexdigest()
+    #c = int.from_bytes(c, byteorder='little')
+    c = int(c, 16)
     return c % ec.q
 
 

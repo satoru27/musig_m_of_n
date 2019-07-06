@@ -19,7 +19,8 @@ def build_tree(leafs, tree, hash_function=hs.sha256):
     if len(leafs) == 1:
         # if len(leafs) == 1 then leafs[0] is the root of the tree and the recursion should stop
         if VISUAL:
-            tree.append(int.from_bytes(leafs[0], byteorder='little') // (10 ** 70))
+            #tree.append(int.from_bytes(leafs[0], byteorder='little') // (10 ** 70))
+            tree.append(int(leafs[0], 16) // (10 ** 70))
             # the above version of the append is to be used if you want the visual representation of the tree as the binarytree library only takes a number as the input
         else:
             tree.append(leafs[0])
@@ -34,7 +35,8 @@ def build_tree(leafs, tree, hash_function=hs.sha256):
     build_tree(next_level, tree, hash_function=hash_function)
     for leaf in leafs:
         if VISUAL:
-            tree.append(int.from_bytes(leaf, byteorder='little') // (10 ** 70))
+            #tree.append(int.from_bytes(leaf, byteorder='little') // (10 ** 70))
+            tree.append(int(leaf, 16) // (10 ** 70))
             # the above version of the append is to be used if you want the visual representation of the tree as the binarytree library only takes a number as the input
         else:
             tree.append(leaf)
@@ -100,16 +102,18 @@ def thread_hash(input, index, output, hash_function=hs.sha256):
      saída"""
     h = hash_function()
     h.update((str(input)).encode())
-    h = h.digest()
+    h = h.hexdigest()
     output.append((index, h))
 
 
 def leaf_hash(input1, input2, hash_function=hs.sha256):
     """Calcula o hash de um nó pai utilizando valores de hash dos seus filhos"""
     h = hash_function()
-    h.update(input1)
-    h.update(input2)
-    return h.digest()
+    #h.update(input1)
+    #h.update(input2)
+    h.update(input1.encode())
+    h.update(input2.encode())
+    return h.hexdigest()
 
 
 def sort_hashes(input):
@@ -168,8 +172,9 @@ def calculate_a(subset, unique_l, ec=curve.secp256k1, hash_function=hs.sha256):
     for key in subset:
         a = hash_function()
         a.update((unique_l + str(key)).encode())
-        a = a.digest()
-        a = int.from_bytes(a, byteorder='little')
+        a = a.hexdigest()
+        #a = int.from_bytes(a, byteorder='little')
+        a = int(a,16)
         a = a % ec.q
         subset_a.append(a)
 
@@ -184,8 +189,8 @@ def calculate_l(pub_keys, hash_function=hs.sha256):
     pointsort.sort(pub_keys)
     l = hash_function()
     l.update(str(pub_keys).encode())
-    #return int.from_bytes(l.digest(), byteorder='little')
-    return str(l.digest())
+    #return int.from_bytes(l.hexdigest(), byteorder='little')
+    return str(l.hexdigest())
 
 
 def build_merkle_tree(complete_public_key_list, restrictions=None, hash_function=hs.sha256):
@@ -218,7 +223,7 @@ def standard_hash(value, hash_function=hs.sha256):
     """Realiza o calculo de hash da entrada e fornece o seu valor em formato de b-string"""
     h = hash_function()
     h.update((str(value)).encode())
-    return h.digest()
+    return h.hexdigest()
 
 
 def produce_proof(key, tree, hash_function=hs.sha256):
@@ -433,45 +438,14 @@ def main():
     k1 = keystorage.import_keys('key4.pem')
     k2 = keystorage.import_keys('key90.pem')
     k3 = keystorage.import_keys('key2.pem')
+    k4 = keystorage.import_keys('k2.pem')
 
-    list = [k1[1], k2[1], k3[1]]
+    list = [k1[1], k2[1], k3[1], k4[1]]
 
     print(list)
 
-    # PUB KEYS MUST BE SORTED
-
-    # out = calculate_aggregated_keys(list)
-    #
-    # out = threaded_hashes(out)
-    # print(out)
-    #
-    # print(80*'-')
-    # sort_hashes(out)
-    # print(out)
-    #
-    # out = clear_hash_list(out)
-    # print(80 * '-')
-    # print(out)
-    # print(f'LEN -> {len(out)}')
-    #
-    # adjust_leafs(out)
-    # print(80 * '-')
-    # print(out)
-    # print(f'LEN -> {len(out)}')
-
-    #tree = build_merkle_tree(list)
-    tree = build_merkle_tree(list, restrictions=[(list[1],list[2])])
-
-    #print(80 * '-')
-    #print(f'TREE: \n{tree}')
-
-    #proof = produce_proof(list[0], tree)
-
-    #print(80 * '-')
-    #print(f'PROOF = {proof}')
-
-    #result = verify(tree[0], list[0], proof)
-
+    #tree = build_merkle_tree(list, restrictions=[(list[1],list[2])])
+    tree = build_merkle_tree(list)
 
     root = bt.build(tree)
     print(root)
