@@ -95,7 +95,7 @@ def compute_challenge(aggregated_key, r_point, m, mod, hash):
     c = c % mod
     return c
 
-def musig_distributed(m, user_key, pub_keys_entry, address_dict, hostname, port, ec=curve.secp256k1, hash = hs.sha256):
+def musig_distributed(m, user_key, pub_keys_entry, address_dict, hostname, port, ec=curve.secp256k1, hash = hs.sha256, complete_pub_keys_list = None):
     # m: string
     # priv key: int/mpz
     # pub key: elliptic curve point
@@ -121,8 +121,13 @@ def musig_distributed(m, user_key, pub_keys_entry, address_dict, hostname, port,
     pointsort.sort(pub_keys)
     print(f'\nPUB KEYS ORDER: {pub_keys}\n')
 
+    if complete_pub_keys_list is None:
+        complete_pub_keys_list = pub_keys.copy()
+    else:
+        pointsort.sort(complete_pub_keys_list)
+
     # string of all pub keys to be used in the hash
-    public_key_string = str(pub_keys)
+    public_key_string = str(complete_pub_keys_list)
     print(f'\nPUB KEY STRING: {public_key_string}\n')
 
     # generating ai = Hagg(L,Xi)
@@ -218,7 +223,7 @@ def musig_distributed(m, user_key, pub_keys_entry, address_dict, hostname, port,
 
     return r_point, signature
 
-def musig_ver(R, s, m, pub_keys_entry, ec=curve.secp256k1, hash = hs.sha256):
+def musig_ver(R, s, m, pub_keys_entry, ec=curve.secp256k1, hash = hs.sha256, complete_pub_keys_list = None):
     # R: elliptic curve point
     # s: int/mpz
     # m: string
@@ -236,8 +241,13 @@ def musig_ver(R, s, m, pub_keys_entry, ec=curve.secp256k1, hash = hs.sha256):
     pointsort.sort(pub_keys)
     print(f'\nPUB KEYS ORDER: {pub_keys}\n')
 
+    if complete_pub_keys_list is None:
+        complete_pub_keys_list = pub_keys.copy()
+    else:
+        pointsort.sort(complete_pub_keys_list)
+
     # string of all pub keys to be used in the hash
-    public_key_string = str(pub_keys)
+    public_key_string = str(complete_pub_keys_list)
     # for key in pub_keys:
     #     public_key_string = public_key_string + SEPARATOR + str(key)
     print(f'\nPUB KEY STRING: {public_key_string}\n')
@@ -298,7 +308,7 @@ def musig_ver_with_key_verification(R, s, m, pub_keys_entry, signing_pub_key, pr
         print('KEY VERIFICATION FAILED')
         return False
 
-    return musig_ver(R, s, m, pub_keys_entry, ec=ec, hash=hash)
+    return musig_ver(R, s, m, pub_keys_entry, ec=ec, hash=hash, complete_pub_keys_list = complete_pub_key_lst)
 
 
 
@@ -334,10 +344,14 @@ def musig_distributed_with_key_verification(m, user_key, pub_keys_entry, address
         pointsort.sort(complete_pub_keys_list)
 
     # string of all pub keys to be used in the hash
-    public_key_string = str(pub_keys)
+    #public_key_string = str(pub_keys)
+    # ****************
+    public_key_string = str(complete_pub_keys_list)
     print(f'\nPUB KEY STRING: {public_key_string}\n')
 
     # generating ai = Hagg(L,Xi)
+    #a_dict = calculate_ai(pub_keys, public_key_string, ec.q, hash)
+    # ****************
     a_dict = calculate_ai(pub_keys, public_key_string, ec.q, hash)
     print(f'\nA DICT: {a_dict}\n')
 
@@ -432,7 +446,10 @@ def musig_distributed_with_key_verification(m, user_key, pub_keys_entry, address
     print(f'RESTRICTIONS: {restrictions}')
     print(f'COMPLETE PUB KEYS LIST:\n{complete_pub_keys_list}')
     merkle_tree = merkle.build_merkle_tree(complete_pub_keys_list, sorted_keys=True, restrictions=restrictions)
+
+    print('$'*80)
     print(f'MERKLE TREE:\n{merkle_tree}')
+    print('$' * 80)
     proof = merkle.produce_proof(aggregated_key, merkle_tree)
 
     return r_point, signature, aggregated_key, proof
