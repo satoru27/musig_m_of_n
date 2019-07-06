@@ -121,6 +121,11 @@ class PageMuSig(PageBase):
         e_signers = tk.Entry(self, textvariable=self.path)
         e_signers.pack()
 
+        self.output_file = tk.StringVar()
+        tk.Label(self, text="Output file:").pack(padx=1, pady=1)
+        e_output = tk.Entry(self, textvariable=self.output_file)
+        e_output.pack()
+
         b_sign = tk.Button(self, text="Sign", command=self.signature_handler)
         b_sign.pack()
 
@@ -129,6 +134,7 @@ class PageMuSig(PageBase):
 
     def signature_handler(self):
         path = self.path.get()
+        output_file = self.output_file.get()
 
         if path == '':
             s = f'Invalid path'
@@ -144,13 +150,15 @@ class PageMuSig(PageBase):
         self.output_box.insert(tk.END, s)
         self.output_box.see(tk.END)
 
-        # self.r_point, self.partial_signature, self.aggregated_key, self.proof = ms.musig_distributed_with_key_verification(
-        #     si.message, si.my_key, si.public_key_list, si.address_dict, si.hostname, si.port,
-        #     ec=si.ec, h_com=si.h_com, h_agg=si.h_agg, h_sig=si.h_sig,
-        #     h_tree=si.h_tree, complete_pub_keys_list=si.complete_pub_key_lst, restrictions=si.restrictions
-        # )
+        self.r_point, self.partial_signature, self.aggregated_key, self.proof = ms.musig_distributed_with_key_verification(
+            si.message, si.my_key, si.public_key_list, si.address_dict, si.hostname, si.port,
+            ec=si.ec, h_com=si.h_com, h_agg=si.h_agg, h_sig=si.h_sig,
+            h_tree=si.h_tree, complete_pub_keys_list=si.complete_pub_key_lst, restrictions=si.restrictions
+        )
 
-        si.print_test()
+        #si.print_test()
+
+        parser.signature_output(output_file, self.r_point, self.partial_signature, si.message, self.aggregated_key, self.proof, si.ec, si.h_sig, si.h_tree)
 
         s = f'Resulting signature:\n(R,s): ({self.r_point},{self.partial_signature})\nAggregated key: {self.aggregated_key}\nProof: {self.proof}'
         s += '\n--------------------------------------------------------------------------------'
@@ -207,8 +215,8 @@ class PageMuSigVer(PageBase):
 
         self.result = ms.musig_ver_with_key_verification(si.r_point, si.signature, si.message, si.proof, si.aggregated_key, self.root, ec=si.ec, h_sig=si.h_sig,
                                     h_tree=si.h_tree)
-        si.print_test()
-        root_info.print_test()
+        #si.print_test()
+        #root_info.print_test()
 
         s = f'Verification result: {self.result}\n'
         s += '\n--------------------------------------------------------------------------------'

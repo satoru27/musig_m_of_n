@@ -9,9 +9,9 @@ import merkle
 CURVES = {"secp256k1": curve.secp256k1, "secp224k1": curve.secp224k1, "brainpoolP256r1": curve.brainpoolP256r1,
               "brainpoolP384r1": curve.brainpoolP384r1, "brainpoolP512r1": curve.brainpoolP512r1}
 
-HASH = {"sha256": hs.sha256, "sha384": hs.sha384, "sha512": hs.sha512, "blake2b": hs.blake2b, "blake2s": hs.blake2s,
-        "sha3_224": hs.sha3_224, "sha3_256": hs.sha3_256, "sha3_384": hs.sha3_384, "sha3_512": hs.sha3_512,
-        "shake_128": hs.shake_128, "shake_256": hs.shake_256}
+HASH = {str(hs.sha256): hs.sha256, str(hs.sha384): hs.sha384, str(hs.sha512): hs.sha512, str(hs.blake2b): hs.blake2b, str(hs.blake2s): hs.blake2s,
+        str(hs.sha3_224): hs.sha3_224, str(hs.sha3_256): hs.sha3_256, str(hs.sha3_384): hs.sha3_384, str(hs.sha3_512): hs.sha3_512,
+        str(hs.shake_128): hs.shake_128, str(hs.shake_256): hs.shake_256}
 
 def point_from_str(input):
     """
@@ -31,6 +31,23 @@ def point_from_str(input):
 
 def str_to_proof(input):
     pass
+
+
+def signature_output(filename, r_point, signature, message, aggregated_key, proof, ec, h_sig, h_tree):
+    output = {
+        "data_type": 1,
+        "r_point": str(r_point),
+        "signature": str(signature),
+        "message": message,
+        "aggregated_key": str(aggregated_key),
+        "proof": proof,
+        "ec": str(ec),
+        "h_sig": str(h_sig),
+        "h_tree": str(h_tree)
+    }
+
+    with open(filename, 'w') as json_file:
+        json.dump(output, json_file)
 
 class Info:
     """
