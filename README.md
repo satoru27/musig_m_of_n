@@ -2,6 +2,8 @@
 
 É necessário instalar o gmpy2 (https://gmpy2.readthedocs.io/en/latest/) e fastecdsa (https://pypi.org/project/fastecdsa/)
 
+Para execução da GUI do MuSig m-de-n, utiliza-se o comando: python3 gui_v2.py
+
 ## Assinatura de Schnorr:
 Disponível no arquivo simple_schnorr.py
 
