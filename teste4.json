@@ -1,0 +1,39 @@
+{
+    "data_type": 0,
+    "hostname": "127.0.0.1", 
+    "port":2439,
+    "my_key_dir":"k2.pem",
+    "message":"teste39826c4b39", "n_co_signers": 3,
+    "co_signers":[
+        {
+            "key_dir":"key2.pem",
+            "hostname":"127.0.0.1",
+            "port":2437
+
+        },
+        {
+            "key_dir":"key4.pem",
+            "hostname":"127.0.0.1",
+            "port":2438
+
+        },
+        {
+            "key_dir":"key90.pem",
+            "hostname":"127.0.0.1",
+            "port":2436
+
+        }    
+    ],
+
+    "complete_pub_key_number":0,
+    "complete_pub_key_lst":"",
+
+    "restrictions_number":0,
+    "restrictions":"",
+
+    "ec":"secp256k1",
+    "h_com":"<built-in function openssl_sha256>",
+    "h_agg":"<built-in function openssl_sha256>",
+    "h_sig":"<built-in function openssl_sha256>",
+    "h_tree":"<built-in function openssl_sha256>"
+}
