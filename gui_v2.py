@@ -2,13 +2,8 @@ import tkinter as tk
 from tkinter import font
 from functools import partial
 import os
-import re
 
 from ecc import *
-
-from keystorage import *
-
-from fastecdsa import point
 
 import parser
 
@@ -60,14 +55,13 @@ class Application(tk.Tk):
         mode_sub_menu.add_command(label='MuSig', command=partial(self.switch_frame, PageMuSig))
         mode_sub_menu.add_command(label='Verification', command=partial(self.switch_frame, PageMuSigVer))
 
-
-        options_sub_menu = tk.Menu(menu)
-        menu.add_cascade(label='Options', menu=options_sub_menu)
-        options_sub_menu.add_command(label='Debug', command=partial(testfunc, 'Debug'))
+        #options_sub_menu = tk.Menu(menu)
+        #menu.add_cascade(label='Options', menu=options_sub_menu)
+        #options_sub_menu.add_command(label='Debug', command=partial(testfunc, 'Debug'))
         #options_sub_menu.add_command(label='Exit', command=frame.quit)
 
     def status_bar(self):
-        status = tk.Label(self, text='Test label', bd=1, relief=tk.SUNKEN, anchor=tk.W)
+        status = tk.Label(self, text=' ', bd=1, relief=tk.SUNKEN, anchor=tk.W)
         status.pack(side=tk.BOTTOM, fill=tk.X)
 
 
@@ -91,7 +85,13 @@ class PageBase(tk.Frame):
 class InitialPage(PageBase):
     def __init__(self, master):
         PageBase.__init__(self, master)
-        tk.Label(self, text="Welcome", font=self.title_font).pack(side="top", fill="x", pady=10)
+        tk.Label(self, text="Welcome", font=self.title_font).pack(side="top", fill="x", padx=100, pady=100)
+        self.winfo_toplevel().title("MuSig m-of-n")
+
+        # this adds something to the frame, otherwise the default
+        # size of the window will be very small
+        #label = tk.Entry(self)
+        #label.pack(side="top", fill="x")
 
 
 # class PageMuSig(PageBase):
